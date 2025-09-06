@@ -16,10 +16,10 @@ I've used gradle and did not use spring intializer , rather have a set of import
 
 ### Running the Projects
 1. Clone the repository:
-git clone https://github.com/your-username/spring-boot-projects.git
-2. Open the project in your IDE  
-3. Build and run the application as a Spring Boot app  
-4. Access APIs via `http://localhost:8080`
+git clone https://github.com/mayank0201/spring-boot-projects.git
+3. Open the project in your IDE  
+4. Build and run the application as a Spring Boot app  
+5. Access APIs via `http://localhost:8080`
 
 ## Notes
 This repository is mainly for revision and practice of Spring Boot, consolidating my learning with hands-on code.
