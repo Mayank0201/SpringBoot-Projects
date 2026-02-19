@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 //works with Controller
 //we use restcontroller if we want to use rest operations
 //like we can put the responseEntity type as a class and then we can get a
-// json response for the class properties for the same if we pass it as a body inside the ResponseEntity
+//json response for the class properties for the same if we pass it as a body inside the ResponseEntity
 //like below using Person
 //if i tried same without response entity , controller will not work
 
@@ -46,8 +46,6 @@ public class RestGetApiController {
         return new ResponseEntity<>("<h1>Accepted</h1>", HttpStatus.ACCEPTED);
         //CHECK HTTPSTATUS CLASS LATER
     }
-
-
 
     @GetMapping("/person")
     public ResponseEntity<Person> person(){

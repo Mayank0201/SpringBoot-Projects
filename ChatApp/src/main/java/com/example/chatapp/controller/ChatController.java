@@ -3,7 +3,6 @@ package com.example.chatapp.controller;
 import com.example.chatapp.model.Message;
 import com.example.chatapp.model.User;
 import com.example.chatapp.service.ChatService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
 import java.util.Scanner;
@@ -12,41 +11,40 @@ import java.util.Scanner;
 public class ChatController {
 
     private final ChatService chatService;
+    private final Scanner scanner;
 
-    @Autowired
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
+        this.scanner = new Scanner(System.in);
     }
 
-    public void startChat(){
-        Scanner sc=new Scanner(System.in);
+    public void startChat() {
 
-        User user1=new User("John");
-        User user2=new User("Jane");
+        User user1 = new User("John");
+        User user2 = new User("Jane");
 
-        while(true){
+        while (true) {
+
             System.out.println("Who is sending the message: (John/Jane)");
-            String senderName=sc.nextLine();
+            if (!scanner.hasNextLine()) break;
+            String senderName = scanner.nextLine();
 
-            System.out.println("Enter your message: ");
-            String content=sc.nextLine();
+            System.out.println("Enter your message:");
+            if (!scanner.hasNextLine()) break;
+            String content = scanner.nextLine();
 
-            User sender=senderName.equalsIgnoreCase("John")?user1:user2;
-            //elvis operator , if equal to john , user1 else user2
+            User sender = senderName.equalsIgnoreCase("John") ? user1 : user2;
+            User receiver = senderName.equalsIgnoreCase("Jane") ? user1 : user2;
 
-            User receiver=senderName.equalsIgnoreCase("Jane")?user1:user2;
-
-            Message message=new Message(content,sender,receiver);
-
+            Message message = new Message(content, sender, receiver);
             chatService.sendMessage(message);
 
-            System.out.println("Type History to view chat history ," +
-                    " continue to send another message and " +
-                    "exit to leave the service");
+            System.out.println("Type History to view chat history, continue to send another message and exit to leave the service");
 
-            String command=(sc.nextLine()).toLowerCase();
+            if (!scanner.hasNextLine()) break;
+            String command = scanner.nextLine().toLowerCase();
 
-            switch(command){
+            switch (command) {
                 case "history":
                     chatService.displayChatHistory();
                     break;
@@ -56,19 +54,11 @@ public class ChatController {
 
                 case "exit":
                     System.out.println("Thanks for using the service, see you later!");
-                    break;
+                    return;
 
                 default:
                     System.out.println("Invalid command");
-                    break;
             }
-
-            if (command.equals("exit")) {
-                break;
-            }
-
         }
-
     }
-
 }
