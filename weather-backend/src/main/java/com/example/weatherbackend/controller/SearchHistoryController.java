@@ -16,14 +16,9 @@ public class SearchHistoryController {
         this.service = service;
     }
 
-    // Save new search (temporary test endpoint)
-    @PostMapping("/search")
-    public SearchHistory saveSearch(
-            @RequestParam String city,
-            @RequestParam Double temperature,
-            @RequestParam String description
-    ) {
-        return service.saveSearch(city, temperature, description);
+    @PostMapping("/weather")
+    public SearchHistory getWeather(@RequestParam String city) {
+        return service.fetchAndSaveWeather(city);
     }
 
     // Get all search history
