@@ -1,6 +1,8 @@
 package com.example.weatherbackend.service;
 
+import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
+import com.example.weatherbackend.external.WeatherApiResponse;
 import com.example.weatherbackend.repository.SearchHistoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -8,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class SearchHistoryService {
@@ -25,19 +26,18 @@ public class SearchHistoryService {
         this.restTemplate = restTemplate;
     }
 
-    public SearchHistory fetchAndSaveWeather(String city) {
+    public WeatherResponse fetchAndSaveWeather(String city) {
 
         String url = "https://api.openweathermap.org/data/2.5/weather?q="
-                + city + "&appid=" +apiKey + "&units=metric";
+                + city + "&appid=" + apiKey + "&units=metric";
 
-        Map response = restTemplate.getForObject(url, Map.class);
+        WeatherApiResponse response =
+                restTemplate.getForObject(url, WeatherApiResponse.class);
 
-        Map main = (Map) response.get("main");
-        Double temperature = Double.valueOf(main.get("temp").toString());
+        assert response != null;
+        Double temperature = response.getMain().getTemp();
+        String description = response.getWeather().get(0).getDescription();
 
-        List weatherList = (List) response.get("weather");
-        Map weather = (Map) weatherList.get(0);
-        String description = weather.get("description").toString();
 
         SearchHistory search = SearchHistory.builder()
                 .city(city)
@@ -46,7 +46,14 @@ public class SearchHistoryService {
                 .searchedAt(LocalDateTime.now())
                 .build();
 
-        return repository.save(search);
+        SearchHistory saved = repository.save(search);
+
+        return WeatherResponse.builder()
+                .city(saved.getCity())
+                .temperature(saved.getTemperature())
+                .description(saved.getDescription())
+                .searchedAt(saved.getSearchedAt().toString())
+                .build();
     }
 
     public List<SearchHistory> getAllSearches() {

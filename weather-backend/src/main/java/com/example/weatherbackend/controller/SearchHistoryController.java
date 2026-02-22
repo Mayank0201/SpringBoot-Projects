@@ -1,5 +1,6 @@
 package com.example.weatherbackend.controller;
 
+import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
 import com.example.weatherbackend.service.SearchHistoryService;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ public class SearchHistoryController {
     }
 
     @PostMapping("/weather")
-    public SearchHistory getWeather(@RequestParam String city) {
+    public WeatherResponse getWeather(@RequestParam String city) {
         return service.fetchAndSaveWeather(city);
     }
 
