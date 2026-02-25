@@ -1,5 +1,6 @@
 package com.example.weatherbackend.controller;
 
+import com.example.weatherbackend.dto.ForecastResponse;
 import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
 import com.example.weatherbackend.service.SearchHistoryService;
@@ -26,5 +27,10 @@ public class SearchHistoryController {
     @GetMapping("/history")
     public List<SearchHistory> getAllSearches() {
         return service.getAllSearches();
+    }
+
+    @GetMapping("/forecast")
+    public ForecastResponse getForecast(@RequestParam String city) {
+        return service.fetchForecast(city);
     }
 }

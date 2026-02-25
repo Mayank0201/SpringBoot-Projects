@@ -1,8 +1,10 @@
 package com.example.weatherbackend.service;
 
+import com.example.weatherbackend.dto.ForecastResponse;
 import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
 import com.example.weatherbackend.exception.CityNotFoundException;
+import com.example.weatherbackend.external.ForecastApiResponse;
 import com.example.weatherbackend.external.WeatherApiResponse;
 import com.example.weatherbackend.repository.SearchHistoryRepository;
 import org.springframework.stereotype.Service;
@@ -53,6 +55,37 @@ public class SearchHistoryService {
                     .temperature(saved.getTemperature())
                     .description(saved.getDescription())
                     .searchedAt(saved.getSearchedAt().toString())
+                    .build();
+
+        } catch (Exception e) {
+            throw new CityNotFoundException("City not found: " + city);
+        }
+    }
+
+    public ForecastResponse fetchForecast(String city) {
+
+        String url = "https://api.openweathermap.org/data/2.5/forecast?q="
+                + city + "&appid=" + apiKey + "&units=metric";
+
+        try {
+
+            ForecastApiResponse response =
+                    restTemplate.getForObject(url, ForecastApiResponse.class);
+
+            // Convert external API model → internal DTO model
+            var items = response.getList()
+                    .stream()
+                    .limit(5) // only first 5 entries
+                    .map(entry -> ForecastResponse.ForecastItem.builder()
+                            .dateTime(entry.getDt_txt())
+                            .temperature(entry.getMain().getTemp())
+                            .description(entry.getWeather().get(0).getDescription())
+                            .build())
+                    .toList();
+
+            return ForecastResponse.builder()
+                    .city(city)
+                    .forecasts(items)
                     .build();
 
         } catch (Exception e) {
