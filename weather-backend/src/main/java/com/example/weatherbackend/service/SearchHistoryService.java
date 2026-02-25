@@ -2,6 +2,7 @@ package com.example.weatherbackend.service;
 
 import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
+import com.example.weatherbackend.exception.CityNotFoundException;
 import com.example.weatherbackend.external.WeatherApiResponse;
 import com.example.weatherbackend.repository.SearchHistoryRepository;
 import org.springframework.stereotype.Service;
@@ -31,29 +32,32 @@ public class SearchHistoryService {
         String url = "https://api.openweathermap.org/data/2.5/weather?q="
                 + city + "&appid=" + apiKey + "&units=metric";
 
-        WeatherApiResponse response =
-                restTemplate.getForObject(url, WeatherApiResponse.class);
+        try {
+            WeatherApiResponse response =
+                    restTemplate.getForObject(url, WeatherApiResponse.class);
 
-        assert response != null;
-        Double temperature = response.getMain().getTemp();
-        String description = response.getWeather().get(0).getDescription();
+            Double temperature = response.getMain().getTemp();
+            String description = response.getWeather().get(0).getDescription();
 
+            SearchHistory search = SearchHistory.builder()
+                    .city(city)
+                    .temperature(temperature)
+                    .description(description)
+                    .searchedAt(LocalDateTime.now())
+                    .build();
 
-        SearchHistory search = SearchHistory.builder()
-                .city(city)
-                .temperature(temperature)
-                .description(description)
-                .searchedAt(LocalDateTime.now())
-                .build();
+            SearchHistory saved = repository.save(search);
 
-        SearchHistory saved = repository.save(search);
+            return WeatherResponse.builder()
+                    .city(saved.getCity())
+                    .temperature(saved.getTemperature())
+                    .description(saved.getDescription())
+                    .searchedAt(saved.getSearchedAt().toString())
+                    .build();
 
-        return WeatherResponse.builder()
-                .city(saved.getCity())
-                .temperature(saved.getTemperature())
-                .description(saved.getDescription())
-                .searchedAt(saved.getSearchedAt().toString())
-                .build();
+        } catch (Exception e) {
+            throw new CityNotFoundException("City not found: " + city);
+        }
     }
 
     public List<SearchHistory> getAllSearches() {
