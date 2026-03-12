@@ -1,0 +1,38 @@
+#version: "3.8" this is obsolete
+
+services:
+
+  db:
+    image: postgres:17
+    container_name: weather-postgres
+#optional to put name , but when we do docker ps , it will show this name rather than random ids, so better for debugging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    #Host port:Container port , the latter used for other comps and host for our own
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    #we do this becuase docker container filesystem is temporary ,volumes helps with permanent storage
+
+  backend:
+    build: .
+    #builds using the dockerfile in the current directory
+    container_name: weather-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    #tells docker to start db service before this service
+    environment:
+      WEATHER_API_KEY: ${WEATHER_API_KEY}
+      #Docker containers do not automatically inherit host environment variables.
+      #Each container has its own environment.
+      #Thats why we have to pass it here directly
+
+volumes:
+  postgres_data:
+
+#this line tells docker to create a volume names postgres data , otherwise error will be thrown

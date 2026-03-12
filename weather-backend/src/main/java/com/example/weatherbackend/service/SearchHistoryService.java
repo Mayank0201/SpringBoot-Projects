@@ -1,5 +1,6 @@
 package com.example.weatherbackend.service;
 
+import com.example.weatherbackend.client.WeatherClient;
 import com.example.weatherbackend.dto.ForecastResponse;
 import com.example.weatherbackend.dto.WeatherResponse;
 import com.example.weatherbackend.entity.SearchHistory;
@@ -18,15 +19,15 @@ import java.util.List;
 public class SearchHistoryService {
 
     private final SearchHistoryRepository repository;
-    private final RestTemplate restTemplate;
+    private final WeatherClient weatherClient;
 
     @Value("${weather.api.key}")
     private String apiKey;
 
     public SearchHistoryService(SearchHistoryRepository repository,
-                                RestTemplate restTemplate) {
+                                WeatherClient weatherClient) {
         this.repository = repository;
-        this.restTemplate = restTemplate;
+        this.weatherClient = weatherClient;
     }
 
     public WeatherResponse fetchAndSaveWeather(String city) {
@@ -36,7 +37,7 @@ public class SearchHistoryService {
 
         try {
             WeatherApiResponse response =
-                    restTemplate.getForObject(url, WeatherApiResponse.class);
+                    weatherClient.fetchCurrentWeather(city);
 
             Double temperature = response.getMain().getTemp();
             String description = response.getWeather().get(0).getDescription();
@@ -70,7 +71,7 @@ public class SearchHistoryService {
         try {
 
             ForecastApiResponse response =
-                    restTemplate.getForObject(url, ForecastApiResponse.class);
+                    weatherClient.fetchForecast(city);
 
             // Convert external API model → internal DTO model
             var items = response.getList()
