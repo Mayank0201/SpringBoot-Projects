@@ -3,6 +3,16 @@ FROM gradle:8.14.2-jdk17 AS builder
 
 WORKDIR /app
 
+# Copy only gradle files first
+COPY build.gradle.kts settings.gradle.kts gradlew ./
+COPY gradle gradle
+
+# Download dependencies (cached layer)
+RUN ./gradlew build -x test --no-daemon || true
+
+#these 3 lines above make sure that dependencies downloaded before , because if we do docker up before
+#running these and their are any code changes , it will again take forever to run
+
 COPY . .
 #copies whole project into container
 
