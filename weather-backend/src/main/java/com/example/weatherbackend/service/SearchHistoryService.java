@@ -8,6 +8,8 @@ import com.example.weatherbackend.exception.CityNotFoundException;
 import com.example.weatherbackend.external.ForecastApiResponse;
 import com.example.weatherbackend.external.WeatherApiResponse;
 import com.example.weatherbackend.repository.SearchHistoryRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Slf4j //for logging
 public class SearchHistoryService {
 
     private final SearchHistoryRepository repository;
@@ -30,6 +33,7 @@ public class SearchHistoryService {
         this.weatherClient = weatherClient;
     }
 
+    @Cacheable(value= "weather",key = "#city.toLowerCase().trim()",unless = "#result==null")
     public WeatherResponse fetchAndSaveWeather(String city) {
 
         String url = "https://api.openweathermap.org/data/2.5/weather?q="
@@ -51,6 +55,8 @@ public class SearchHistoryService {
 
             SearchHistory saved = repository.save(search);
 
+            log.info("Fetching weather from external API for city: {}",city);
+            //if no log , then redis used the cached value
             return WeatherResponse.builder()
                     .city(saved.getCity())
                     .temperature(saved.getTemperature())

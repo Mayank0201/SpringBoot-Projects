@@ -33,6 +33,9 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")//swagger testing localhost
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    //redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     compileOnly("org.projectlombok:lombok")
     //runtimeOnly("com.h2database:h2")
     annotationProcessor("org.projectlombok:lombok")

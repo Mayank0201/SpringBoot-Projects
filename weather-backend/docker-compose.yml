@@ -35,6 +35,11 @@ services:
       #Each container has its own environment.
       #Thats why we have to pass it here directly
 
+  redis:
+    image: redis:7
+    container_name: weather-redis
+    ports:
+      - "6379:6379"
 volumes:
   postgres_data:
 
