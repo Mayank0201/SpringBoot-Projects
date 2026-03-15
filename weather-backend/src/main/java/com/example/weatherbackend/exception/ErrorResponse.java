@@ -1,11 +1,11 @@
 package com.example.weatherbackend.exception;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Getter
+@Data
 @AllArgsConstructor
 public class ErrorResponse {
 

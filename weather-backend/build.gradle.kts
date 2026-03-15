@@ -28,7 +28,10 @@ dependencies {
     //implementation("org.springframework.boot:spring-boot-h2console")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
-    implementation("org.postgresql:postgresql:42.7.3")
+    implementation("org.postgresql:postgresql")
+
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")//swagger testing localhost
+    implementation("org.springframework.boot:spring-boot-starter-validation")
 
     compileOnly("org.projectlombok:lombok")
     //runtimeOnly("com.h2database:h2")
