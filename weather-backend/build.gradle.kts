@@ -35,9 +35,11 @@ dependencies {
 
     //redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-
     //rate limiting
     implementation("com.bucket4j:bucket4j-core:8.10.1")
+
+    //actuator for monitoring
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     compileOnly("org.projectlombok:lombok")
     //runtimeOnly("com.h2database:h2")
