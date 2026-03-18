@@ -10,6 +10,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import io.github.bucket4j.Bucket;
 import com.example.weatherbackend.config.RateLimitConfig;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.io.IOException;
 import java.util.Map;
@@ -19,12 +20,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitConfig config;
+    private final MeterRegistry meterRegistry;
 
-    // Store buckets per IP
+    // store buckets per IP
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(RateLimitConfig config) {
+    public RateLimitFilter(RateLimitConfig config, MeterRegistry meterRegistry) {
         this.config = config;
+        this.meterRegistry=meterRegistry;
     }
 
     private Bucket resolveBucket(String ip) {
@@ -37,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Better IP handling (future-proof)
+        // better IP handling (future-proof)
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty()) {
             ip = request.getRemoteAddr();
@@ -48,6 +51,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
+            meterRegistry.counter("weather.rate.limit.blocked",
+            "ip", ip)
+            .increment();
             response.setStatus(429);
             response.setContentType("application/json");
 

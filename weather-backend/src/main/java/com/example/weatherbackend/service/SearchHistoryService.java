@@ -13,9 +13,11 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Counter;
 
 @Service
 @Slf4j //for logging
@@ -23,25 +25,37 @@ public class SearchHistoryService {
 
     private final SearchHistoryRepository repository;
     private final WeatherClient weatherClient;
+    private final MeterRegistry meterRegistry;
+    private final Counter cacheHitCounter;
+    private final Counter cacheMissCounter;
 
     @Value("${weather.api.key}")
     private String apiKey;
 
     public SearchHistoryService(SearchHistoryRepository repository,
-                                WeatherClient weatherClient) {
+                                WeatherClient weatherClient,MeterRegistry meterRegistry) {
         this.repository = repository;
         this.weatherClient = weatherClient;
+        this.meterRegistry=meterRegistry;
+        this.cacheHitCounter = meterRegistry.counter("weather.cache.hits");
+        this.cacheMissCounter = meterRegistry.counter("weather.cache.misses");
     }
 
     @Cacheable(value= "weather",key = "#city.toLowerCase().trim()",unless = "#result==null")
     public WeatherResponse fetchAndSaveWeather(String city) {
 
-        String url = "https://api.openweathermap.org/data/2.5/weather?q="
-                + city + "&appid=" + apiKey + "&units=metric";
+        cacheMissCounter.increment();//means cache not used and method called
+        //String url = "https://api.openweathermap.org/data/2.5/weather?q="
+         //       + city + "&appid=" + apiKey + "&units=metric";
 
         try {
             WeatherApiResponse response =
                     weatherClient.fetchCurrentWeather(city);
+            meterRegistry.counter(
+                    "weather.api.calls",
+                    "city", city.toLowerCase(),
+                    "status", "success"
+            ).increment();
 
             Double temperature = response.getMain().getTemp();
             String description = response.getWeather().get(0).getDescription();
@@ -65,6 +79,8 @@ public class SearchHistoryService {
                     .build();
 
         } catch (Exception e) {
+            meterRegistry.counter("weather.api.calls","city",city.toLowerCase().trim(),
+                    "status","failure").increment();
             throw new CityNotFoundException("City not found: " + city);
         }
     }
