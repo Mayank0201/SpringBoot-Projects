@@ -41,6 +41,9 @@ dependencies {
     //actuator for monitoring
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    //prometheus used to expose metrics to grafana
+    implementation("io.micrometer:micrometer-registry-prometheus")
+
     compileOnly("org.projectlombok:lombok")
     //runtimeOnly("com.h2database:h2")
     annotationProcessor("org.projectlombok:lombok")
