@@ -29,9 +29,18 @@ public class RedisConfig {
                         );
 
 
-        //in the future can add for forecast different cache
+        RedisCacheConfiguration forecastCache=RedisCacheConfiguration
+                .defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(10))
+                .serializeValuesWith
+                        (RedisSerializationContext.SerializationPair.fromSerializer(
+                            RedisSerializer.json()
+                        )
+                        );
+
         Map<String,RedisCacheConfiguration> configs=new HashMap<>();
         configs.put("weather",weatherCache);
+        configs.put("forecast",forecastCache);
 
 
         return RedisCacheManager.

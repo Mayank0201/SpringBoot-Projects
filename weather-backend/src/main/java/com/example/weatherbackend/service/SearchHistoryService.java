@@ -11,7 +11,6 @@ import com.example.weatherbackend.repository.SearchHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -85,15 +84,20 @@ public class SearchHistoryService {
         }
     }
 
+    @Cacheable(value = "forecast", key = "#city.toLowerCase().trim()", unless = "#result == null")
     public ForecastResponse fetchForecast(String city) {
 
-        String url = "https://api.openweathermap.org/data/2.5/forecast?q="
-                + city + "&appid=" + apiKey + "&units=metric";
+        cacheMissCounter.increment();
 
         try {
-
             ForecastApiResponse response =
                     weatherClient.fetchForecast(city);
+
+            meterRegistry.counter(
+                    "forecast.api.calls",
+                    "city", city.toLowerCase(),
+                    "status", "success"
+            ).increment();
 
             // Convert external API model → internal DTO model
             var items = response.getList()
@@ -106,12 +110,16 @@ public class SearchHistoryService {
                             .build())
                     .toList();
 
+            log.info("Fetching forecast from external API for city: {}", city);
+
             return ForecastResponse.builder()
                     .city(city)
                     .forecasts(items)
                     .build();
 
         } catch (Exception e) {
+            meterRegistry.counter("forecast.api.calls", "city", city.toLowerCase().trim(),
+                    "status", "failure").increment();
             throw new CityNotFoundException("City not found: " + city);
         }
     }

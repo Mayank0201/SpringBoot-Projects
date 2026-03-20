@@ -35,7 +35,11 @@ public class SearchHistoryController {
     }
 
     @GetMapping("/forecast")
-    public ForecastResponse getForecast(@RequestParam String city) {
+    public ForecastResponse getForecast(
+            @RequestParam
+            @NotBlank(message = "City cannot be empty")
+            String city
+    ) {
         return service.fetchForecast(city);
     }
 }
