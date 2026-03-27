@@ -14,9 +14,7 @@ public class TestController{
   
   @GetMapping("/test-db")
   public String testDb(){
-    
-    User user=new User("testUser2","test2@test.com","123");
-    userRepository.save(user);
+
     return "User saved!";
   }
   
