@@ -1,22 +1,17 @@
 package com.example.cinetrackerbackend.movie;
 
-import java.util.List;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
-
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class MovieService{
 
-  private final MovieRepository movieRepo;
+  private final TmdbClient tmdbClient;
 
-  public Movie saveMovie(Movie movie){
-    return movieRepo.save(movie);
-  }
-
-  public List<Movie> getMovies(){
-    return movieRepo.findAll();
+  public Map<String, Object> searchMovies(String query) {
+      return tmdbClient.searchMovies(query);
   }
 
 }

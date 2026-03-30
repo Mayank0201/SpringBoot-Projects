@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/movie")
@@ -15,14 +17,10 @@ public class MovieController{
 
   private final MovieService movieService;
 
-  @PostMapping("/add")
-  public Movie saveMovie(@RequestBody Movie movie){
-    return movieService.saveMovie(movie);
-  }
 
-  @GetMapping("/getMovies")
-  public List<Movie> getAllMovies(){
-    return movieService.getMovies();
+  @GetMapping("/search")
+  public Map<String ,Object> searchMovies(@RequestParam String query){
+    return movieService.searchMovies(query);
   }
 
 }
