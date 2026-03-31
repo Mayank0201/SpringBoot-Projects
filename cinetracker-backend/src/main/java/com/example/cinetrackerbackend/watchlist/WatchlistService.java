@@ -9,6 +9,8 @@ import com.example.cinetrackerbackend.user.User;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.cinetrackerbackend.exception.ApiException;
+
 @Service
 @RequiredArgsConstructor
 public class WatchlistService{
@@ -20,15 +22,15 @@ public class WatchlistService{
   public Watchlist addToWatchlist(Long userId,Long movieId){
     
     if((watchlistRepo.existsByUser_IdAndMovie_Id(userId, movieId))){
-      throw new RuntimeException("Movie already in watchlist");
+      throw new ApiException("Movie already in watchlist");
     }
     
     
     User user=userRepo.findById(userId)
-	  .orElseThrow(()->new RuntimeException("User not found"));
+	  .orElseThrow(()->new ApiException("User not found"));
 
     Movie movie=movieRepo.findById(movieId)
-	  .orElseThrow(()->new RuntimeException("Movie not found"));
+	  .orElseThrow(()->new ApiException("Movie not found"));
 
     Watchlist watchlist=new Watchlist(null,user,movie);
     return watchlistRepo.save(watchlist);
