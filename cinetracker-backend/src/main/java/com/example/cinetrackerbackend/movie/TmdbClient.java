@@ -21,4 +21,29 @@ public class TmdbClient {
 
     return restTemplate.getForObject(url, Map.class);
   }
+
+  public Map<String, Object> getPopularMovies() {
+
+    String url = tmdbConfig.getBaseUrl()
+            + "/movie/popular?api_key=" + tmdbConfig.getApiKey();
+
+    return restTemplate.getForObject(url, Map.class);
+  }
+
+  public Map<String,Object> getGenres(){
+    String url= tmdbConfig.getBaseUrl()
+            + "/genre/movie/list?api_key=" + tmdbConfig.getApiKey();
+    
+    return restTemplate.getForObject(url,Map.class);
+  }
+
+  public Map<String,Object> getMoviesByGenre(Long genreId){
+    String url= tmdbConfig.getBaseUrl()
+            + "/discover/movie?api_key=" + tmdbConfig.getApiKey()
+            + "&with_genres=" + genreId;
+
+    return restTemplate.getForObject(url,Map.class);
+  }
+
+
 }
