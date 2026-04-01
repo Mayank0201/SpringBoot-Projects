@@ -49,6 +49,11 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
+
     // dotenv for .env file loading
     implementation("io.github.cdimascio:java-dotenv:5.2.2")
 

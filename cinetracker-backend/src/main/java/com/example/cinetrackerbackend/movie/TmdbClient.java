@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import java.util.Map;
 
+import org.springframework.cache.annotation.Cacheable;
+
 @Component
 @RequiredArgsConstructor
 public class TmdbClient {
@@ -13,6 +15,7 @@ public class TmdbClient {
   private final TmdbConfig tmdbConfig;
   private final RestTemplate restTemplate = new RestTemplate();
 
+  @Cacheable("searchMovies")
   public Map<String, Object> searchMovies(String query) {
 
     String url = tmdbConfig.getBaseUrl()
@@ -22,6 +25,7 @@ public class TmdbClient {
     return restTemplate.getForObject(url, Map.class);
   }
 
+  @Cacheable("popularMovies")
   public Map<String, Object> getPopularMovies() {
 
     String url = tmdbConfig.getBaseUrl()
@@ -30,6 +34,7 @@ public class TmdbClient {
     return restTemplate.getForObject(url, Map.class);
   }
 
+  @Cacheable("genres")
   public Map<String,Object> getGenres(){
     String url= tmdbConfig.getBaseUrl()
             + "/genre/movie/list?api_key=" + tmdbConfig.getApiKey();
@@ -37,6 +42,7 @@ public class TmdbClient {
     return restTemplate.getForObject(url,Map.class);
   }
 
+  @Cacheable("moviesByGenre")
   public Map<String,Object> getMoviesByGenre(Long genreId){
     String url= tmdbConfig.getBaseUrl()
             + "/discover/movie?api_key=" + tmdbConfig.getApiKey()
@@ -44,6 +50,5 @@ public class TmdbClient {
 
     return restTemplate.getForObject(url,Map.class);
   }
-
 
 }

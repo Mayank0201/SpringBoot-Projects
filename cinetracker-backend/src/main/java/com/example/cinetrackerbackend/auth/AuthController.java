@@ -2,6 +2,7 @@ package com.example.cinetrackerbackend.auth;
 
 import com.example.cinetrackerbackend.user.User;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
@@ -12,7 +13,7 @@ public class AuthController{
     private final AuthService authService;
 
     @PostMapping("/register")
-    public User register(@RequestBody RegisterRequest request){
+    public User register(@Valid @RequestBody RegisterRequest request){
         return authService.register(request.username,
             request.email,
             request.password);
