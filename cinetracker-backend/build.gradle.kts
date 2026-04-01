@@ -4,6 +4,14 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
 }
 
+tasks.bootJar {
+    enabled = true
+}
+
+tasks.jar {
+    enabled = false
+}
+
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
 description = "cinetracker-backend"
