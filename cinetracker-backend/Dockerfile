@@ -1,17 +1,17 @@
-FROM gradle:8.7-jdk17 AS build
+#FROM gradle:8.7-jdk17 AS build
 
-WORKDIR /app
+#WORKDIR /app
 
-COPY . .
+#COPY . .
 
-RUN chmod +x gradlew
-RUN ./gradlew clean build -x test
+#RUN chmod +x gradlew
+#RUN ./gradlew clean build -x test
 
 FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY build/libs/*.jar app.jar
 
 EXPOSE 8080
 
