@@ -2,13 +2,12 @@ package com.example.cinetrackerbackend.movie;
 
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.example.cinetrackerbackend.movie.dto.MovieSearchResponse;
+import com.example.cinetrackerbackend.movie.dto.PaginatedResponse;
 import com.example.cinetrackerbackend.movie.dto.HomeScreenMovieResponse;
 import com.example.cinetrackerbackend.movie.dto.GenreResponse;
 
@@ -21,13 +20,13 @@ public class MovieController{
 
 
   @GetMapping("/search")
-  public List<MovieSearchResponse> searchMovies(@RequestParam String query){
-    return movieService.searchMovies(query);
+  public PaginatedResponse<MovieSearchResponse> searchMovies(@RequestParam String query, @RequestParam(defaultValue = "1") int page){
+    return movieService.searchMovies(query,page);
   }
 
   @GetMapping("/popular")
-  public List<HomeScreenMovieResponse> getPopularMovies(){
-    return movieService.getPopularMovies();
+  public PaginatedResponse<HomeScreenMovieResponse> getPopularMovies(@RequestParam(defaultValue = "1") int page){
+    return movieService.getPopularMovies(page);
   }
 
   @GetMapping("/genres")
@@ -36,7 +35,7 @@ public class MovieController{
   }
 
   @GetMapping("/by-genre")
-  public List<HomeScreenMovieResponse> getMoviesByGenre(@RequestParam Long genreId){
-    return movieService.getMoviesByGenre(genreId);
+  public PaginatedResponse<HomeScreenMovieResponse> getMoviesByGenre(@RequestParam Long genreId,@RequestParam(defaultValue = "1") int page){
+    return movieService.getMoviesByGenre(genreId,page);
   }
 }

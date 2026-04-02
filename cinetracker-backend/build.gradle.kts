@@ -49,6 +49,8 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-cache")
 

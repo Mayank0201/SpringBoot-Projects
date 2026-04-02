@@ -16,20 +16,22 @@ public class TmdbClient {
   private final RestTemplate restTemplate = new RestTemplate();
 
   @Cacheable("searchMovies")
-  public Map<String, Object> searchMovies(String query) {
+  public Map<String, Object> searchMovies(String query,int page) {
 
     String url = tmdbConfig.getBaseUrl()
        + "/search/movie?api_key=" + tmdbConfig.getApiKey()
-       + "&query=" + query;
+       + "&query=" + query
+       + "&page=" + page;
 
     return restTemplate.getForObject(url, Map.class);
   }
 
   @Cacheable("popularMovies")
-  public Map<String, Object> getPopularMovies() {
+  public Map<String, Object> getPopularMovies(int page) {
 
     String url = tmdbConfig.getBaseUrl()
-            + "/movie/popular?api_key=" + tmdbConfig.getApiKey();
+            + "/movie/popular?api_key=" + tmdbConfig.getApiKey()
+            + "&page=" + page;
 
     return restTemplate.getForObject(url, Map.class);
   }
@@ -43,12 +45,19 @@ public class TmdbClient {
   }
 
   @Cacheable("moviesByGenre")
-  public Map<String,Object> getMoviesByGenre(Long genreId){
+  public Map<String,Object> getMoviesByGenre(Long genreId,int page){
     String url= tmdbConfig.getBaseUrl()
             + "/discover/movie?api_key=" + tmdbConfig.getApiKey()
-            + "&with_genres=" + genreId;
+            + "&with_genres=" + genreId
+            + "&page=" + page;
 
     return restTemplate.getForObject(url,Map.class);
+  }
+ 
+  @Cacheable("movieDetails")
+  public Map<String, Object> getMovieDetails(Long movieId) {
+    String url = tmdbConfig.getBaseUrl() + "/movie/" + movieId + "?api_key=" + tmdbConfig.getApiKey();
+    return restTemplate.getForObject(url, Map.class);
   }
 
 }
