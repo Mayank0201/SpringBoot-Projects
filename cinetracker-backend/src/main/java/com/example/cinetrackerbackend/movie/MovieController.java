@@ -10,6 +10,7 @@ import com.example.cinetrackerbackend.movie.dto.MovieSearchResponse;
 import com.example.cinetrackerbackend.movie.dto.PaginatedResponse;
 import com.example.cinetrackerbackend.movie.dto.HomeScreenMovieResponse;
 import com.example.cinetrackerbackend.movie.dto.GenreResponse;
+import com.example.cinetrackerbackend.movie.dto.MovieDetailsResponse;
 
 @RestController
 @RequestMapping("/movie")
@@ -37,5 +38,10 @@ public class MovieController{
   @GetMapping("/by-genre")
   public PaginatedResponse<HomeScreenMovieResponse> getMoviesByGenre(@RequestParam Long genreId,@RequestParam(defaultValue = "1") int page){
     return movieService.getMoviesByGenre(genreId,page);
+  }
+
+  @GetMapping("/details")
+  public MovieDetailsResponse getMovieDetails(@RequestParam Long movieId) {
+    return movieService.getMovieDetails(movieId);
   }
 }

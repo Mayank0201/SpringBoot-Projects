@@ -4,12 +4,15 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import com.example.cinetrackerbackend.user.UserRepository;
 import com.example.cinetrackerbackend.user.User;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.cinetrackerbackend.exception.ApiException;
 import com.example.cinetrackerbackend.movie.TmdbClient;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -19,19 +22,24 @@ public class WatchlistService{
   private final UserRepository userRepo;
   private final TmdbClient tmdbClient;
 
-  public Watchlist addToWatchlist(Long userId,Long movieId){
+  public WatchlistResponse addToWatchlist(Long userId,Long movieId){
     
     if((watchlistRepo.existsByUser_IdAndMovieId(userId, movieId))){
-      throw new ApiException("Movie already in watchlist");
+      throw new ApiException("Movie already in watchlist", HttpStatus.CONFLICT);
     }
     
     
     User user=userRepo.findById(userId)
-	  .orElseThrow(()->new ApiException("User not found"));
+	  .orElseThrow(()->new ApiException("User not found", HttpStatus.NOT_FOUND));
 
     Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
 
     String title = (String) movieData.get("title");
+    String overview = (String) movieData.getOrDefault("overview", "");
+
+    Double rating = movieData.get("vote_average") != null
+      ? ((Number) movieData.get("vote_average")).doubleValue()
+      : 0.0;
 
     String posterPath = (String) movieData.get("poster_path");
     String posterUrl = posterPath != null
@@ -43,30 +51,38 @@ public class WatchlistService{
         ? Integer.parseInt(releaseDate.substring(0, 4))
         : 0;
 
+    List<Map<String, Object>> genres = (List<Map<String, Object>>) movieData.getOrDefault("genres", Collections.emptyList());
+    String genre = genres.stream()
+      .map(genreMap -> (String) genreMap.get("name"))
+      .filter(Objects::nonNull)
+      .collect(Collectors.joining(", "));
+
+    if (genre.isBlank()) {
+      genre = "N/A";
+    }
+
     Watchlist watchlist = new Watchlist(
         null,
         user,
         movieId,
         title,
         posterUrl,
+        overview,
+        rating,
+        releaseDate,
         releaseYear,
-        "N/A"
+        genre
     );
 
-    return watchlistRepo.save(watchlist);
+    Watchlist saved = watchlistRepo.save(watchlist);
+    return toResponse(saved);
   }
 
   public List<WatchlistResponse> getUserWatchlist(Long userId) {
 
     return watchlistRepo.findByUser_Id(userId)
         .stream()
-        .map(w -> new WatchlistResponse(
-            w.getId(),
-            w.getMovieId(),
-            w.getTitle(),
-            w.getGenre(),
-            w.getReleaseYear()
-        ))
+      .map(this::toResponse)
         .collect(Collectors.toList());
   }
 
@@ -75,10 +91,25 @@ public class WatchlistService{
   public void removeFromWatchlist(Long userId, Long movieId){
 
     if (!watchlistRepo.existsByUser_IdAndMovieId(userId, movieId)) {
-      throw new ApiException("Movie not in watchlist");
+      throw new ApiException("Movie not in watchlist", HttpStatus.NOT_FOUND);
     }
 
     watchlistRepo.deleteByUser_IdAndMovieId(userId, movieId);
+  }
+
+  private WatchlistResponse toResponse(Watchlist watchlist) {
+    return new WatchlistResponse(
+      watchlist.getId(),
+      watchlist.getMovieId(),
+      watchlist.getTitle(),
+      watchlist.getPosterUrl(),
+      watchlist.getOverview(),
+      watchlist.getRating(),
+      watchlist.getRating(),
+      watchlist.getReleaseDate(),
+      watchlist.getReleaseYear(),
+      watchlist.getGenre()
+    );
   }
 
 }

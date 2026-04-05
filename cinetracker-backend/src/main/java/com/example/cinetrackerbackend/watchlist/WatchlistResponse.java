@@ -14,9 +14,19 @@ public class WatchlistResponse{
 
   private String title;
 
-  private String genre;
+  private String posterUrl;
+
+  private String overview;
+
+  private Double rating;
+
+  private Double voteAverage;
+
+  private String releaseDate;
 
   private int releaseYear;
+
+  private String genre;
 
 }
 

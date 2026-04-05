@@ -36,11 +36,18 @@ public class JwtFilter extends OncePerRequestFilter{
         }
 
         String token = authHeader.substring(7);
-        String username=jwtService.extractUsername(token);
+        String username;
+
+        try {
+            username = jwtService.extractUsername(token);
+        } catch (Exception ex) {
+            writeUnauthorized(response, "Invalid or expired token");
+            return;
+        }
 
         if(username!=null && SecurityContextHolder.getContext().getAuthentication()==null){
 
-            User user=userRepository.findByUsername(username).orElseThrow(null);
+            User user=userRepository.findByUsername(username).orElse(null);
             
             if(user!=null && jwtService.isTokenValid(token,user.getUsername())){
 
@@ -50,13 +57,25 @@ public class JwtFilter extends OncePerRequestFilter{
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-
+            } else {
+                writeUnauthorized(response, "Invalid token");
+                return;
             }
 
-            filterChain.doFilter(request,response);
+        } else if (username == null) {
+            writeUnauthorized(response, "Invalid token");
+            return;
 
         }
 
+        filterChain.doFilter(request,response);
+
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"message\":\"" + message + "\",\"status\":401}");
     }
 
 }

@@ -11,7 +11,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import com.example.cinetrackerbackend.movie.Movie;
 import com.example.cinetrackerbackend.user.User;
 
 @Entity
@@ -33,6 +32,9 @@ public class Watchlist{
   private Long movieId;
   private String title;
   private String posterUrl;
+  private String overview;
+  private Double rating;
+  private String releaseDate;
   private int releaseYear;
   private String genre;
 

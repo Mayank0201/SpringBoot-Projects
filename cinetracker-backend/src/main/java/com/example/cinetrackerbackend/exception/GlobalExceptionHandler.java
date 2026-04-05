@@ -16,9 +16,9 @@ public class GlobalExceptionHandler{
 
     Map<String,Object> response=new HashMap<>();
     response.put("message",ex.getMessage());
-    response.put("status",HttpStatus.BAD_REQUEST.value());
+    response.put("status",ex.getStatus().value());
 
-    return new ResponseEntity<>(response,HttpStatus.BAD_REQUEST);
+    return new ResponseEntity<>(response,ex.getStatus());
 
   }
 
