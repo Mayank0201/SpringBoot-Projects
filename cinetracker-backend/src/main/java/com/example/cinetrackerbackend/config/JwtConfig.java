@@ -11,5 +11,6 @@ public class JwtConfig {
 
     private String secret; //since prefix jwt used , it will map to jwt.secret from app.prop
     private long expiration;
+    private long refreshExpiration;
 
 }

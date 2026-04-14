@@ -9,6 +9,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import com.example.cinetrackerbackend.security.JwtService;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +38,7 @@ public class AuthService{
     return savedUser;
   }
 
-  public String login(String username,String password){
+  public AuthTokenResponse login(String username,String password){
 
     User user = userRepository.findByUsername(username)
       .orElseThrow(() -> new ApiException("Invalid username or password", HttpStatus.UNAUTHORIZED));
@@ -42,8 +47,55 @@ public class AuthService{
       throw new ApiException("Invalid username or password", HttpStatus.UNAUTHORIZED);
     }
 
-    String token = jwtService.generateToken(user);
-    return token;
+    String accessToken = jwtService.generateAccessToken(user);
+    String refreshToken = jwtService.generateRefreshToken(user);
+
+    user.setRefreshTokenHash(hashToken(refreshToken));
+    user.setRefreshTokenExpiresAt(jwtService.extractExpiration(refreshToken).toInstant());
+    userRepository.save(user);
+
+    long expiresInSeconds = jwtService.extractExpiration(accessToken).toInstant().getEpochSecond()
+        - Instant.now().getEpochSecond();
+
+    return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0));
+  }
+
+  public RefreshTokenResponse refreshAccessToken(String refreshToken) {
+
+    String username;
+    try {
+      username = jwtService.extractUsername(refreshToken);
+    } catch (Exception ex) {
+      throw new ApiException("Invalid refresh token", HttpStatus.UNAUTHORIZED);
+    }
+
+    String refreshTokenHash = hashToken(refreshToken);
+
+    User user = userRepository.findByRefreshTokenHash(refreshTokenHash)
+        .orElseThrow(() -> new ApiException("Invalid refresh token", HttpStatus.UNAUTHORIZED));
+
+    if (!user.getUsername().equals(username)
+        || !jwtService.isRefreshTokenValid(refreshToken, username)
+        || user.getRefreshTokenExpiresAt() == null
+        || user.getRefreshTokenExpiresAt().isBefore(Instant.now())) {
+      throw new ApiException("Invalid refresh token", HttpStatus.UNAUTHORIZED);
+    }
+
+    String newAccessToken = jwtService.generateAccessToken(user);
+    long expiresInSeconds = jwtService.extractExpiration(newAccessToken).toInstant().getEpochSecond()
+        - Instant.now().getEpochSecond();
+
+    return RefreshTokenResponse.of(newAccessToken, Math.max(expiresInSeconds, 0));
+  }
+
+  private String hashToken(String token) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hashBytes = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+      return Base64.getEncoder().encodeToString(hashBytes);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 algorithm is not available", e);
+    }
   }
 
 }

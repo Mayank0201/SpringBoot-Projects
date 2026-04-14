@@ -3,6 +3,7 @@ package com.example.cinetrackerbackend.user;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import java.time.Instant;
 
 @Entity
 @RequiredArgsConstructor
@@ -22,6 +23,12 @@ public class User {
 
     @Column(nullable=false,unique=false)
     private String password;
+
+    @Column(name = "refresh_token_hash")
+    private String refreshTokenHash;
+
+    @Column(name = "refresh_token_expires_at")
+    private Instant refreshTokenExpiresAt;
 
     public User(String username, String email, String password) {
         this.username=username;

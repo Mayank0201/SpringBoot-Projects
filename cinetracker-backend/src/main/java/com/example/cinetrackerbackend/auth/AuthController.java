@@ -26,8 +26,12 @@ public class AuthController{
 
     @PostMapping({"/login", "/login/"})
     public AuthTokenResponse login(@Valid @RequestBody LoginRequest request){
-
-        return new AuthTokenResponse(authService.login(request.getUsername(), request.getPassword()));
-
+        return authService.login(request.getUsername(), request.getPassword());
     }
+
+    @PostMapping({"/refresh", "/refresh/", "/refresh-token", "/refresh-token/"})
+    public RefreshTokenResponse refreshAccessToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refreshAccessToken(request.getRefreshToken());
+    }
+
 }

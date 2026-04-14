@@ -18,6 +18,10 @@ import java.security.Key;
 @RequiredArgsConstructor
 public class JwtService {
 
+    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
+
     private final JwtConfig jwtConfig;
 
     private Key getSigningKey() {
@@ -25,12 +29,26 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    public String generateAccessToken(User user) {
+        return generateToken(user, jwtConfig.getExpiration(), ACCESS_TOKEN_TYPE);
+    }
+
+    public String generateRefreshToken(User user) {
+        return generateToken(user, jwtConfig.getRefreshExpiration(), REFRESH_TOKEN_TYPE);
+    }
+
+    // Backward-compatible alias for existing callers.
     public String generateToken(User user) {
+        return generateAccessToken(user);
+    }
+
+    private String generateToken(User user, long expirationInMillis, String tokenType) {
         return Jwts.builder()
                 .setSubject(user.getUsername())
                 .claim("userId", user.getId())
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getExpiration()))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationInMillis))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -59,11 +77,35 @@ public class JwtService {
         return null;
     }
 
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
+    public String extractTokenType(String token) {
+        Object tokenType = extractAllClaims(token).get(TOKEN_TYPE_CLAIM);
+        return tokenType != null ? tokenType.toString() : null;
+    }
+
+    public boolean isAccessTokenValid(String token, String username) {
+        return isTokenValid(token, username, ACCESS_TOKEN_TYPE);
+    }
+
+    public boolean isRefreshTokenValid(String token, String username) {
+        return isTokenValid(token, username, REFRESH_TOKEN_TYPE);
+    }
+
     public boolean isTokenValid(String token, String username) {
+        return isAccessTokenValid(token, username);
+    }
+
+    public boolean isTokenValid(String token, String username, String expectedTokenType) {
         try {
             Claims claims = extractAllClaims(token);
             Date expiration = claims.getExpiration();
+            String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+
             return claims.getSubject().equals(username)
+                    && expectedTokenType.equals(tokenType)
                     && expiration != null
                     && expiration.after(new Date());
         } catch (Exception ex) {

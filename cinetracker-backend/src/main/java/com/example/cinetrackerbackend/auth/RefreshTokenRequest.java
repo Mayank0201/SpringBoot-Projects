@@ -1,0 +1,11 @@
+package com.example.cinetrackerbackend.auth;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+
+@Getter
+public class RefreshTokenRequest {
+
+    @NotBlank(message = "Refresh token is required")
+    private String refreshToken;
+}
