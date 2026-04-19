@@ -64,4 +64,26 @@ public class RatingService {
             null
         );
     }
+
+    public java.util.Map<Long, RatingSummaryDTO> getRatingSummariesForMovies(java.util.List<Long> movieIds) {
+        if (movieIds == null || movieIds.isEmpty()) {
+            return new java.util.HashMap<>();
+        }
+        java.util.List<RatingSummaryProjection> projections = ratingRepository.getRatingSummariesForMovies(movieIds);
+        java.util.Map<Long, RatingSummaryDTO> result = new java.util.HashMap<>();
+        
+        for (RatingSummaryProjection proj : projections) {
+            result.put(proj.getMovieId(), new RatingSummaryDTO(
+                proj.getMovieId(),
+                proj.getAverageRating(),
+                proj.getRatingCount(),
+                null
+            ));
+        }
+        
+        for (Long movieId : movieIds) {
+            result.putIfAbsent(movieId, new RatingSummaryDTO(movieId, 0.0, 0L, null));
+        }
+        return result;
+    }
 }

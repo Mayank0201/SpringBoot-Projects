@@ -28,7 +28,7 @@ public class MovieService{
 
   private static final String IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 
-  private HomeScreenMovieResponse mapToHomeMovieResponse(Map<String, Object> movie, Map<Long, String> genreLookup) {
+  private HomeScreenMovieResponse mapToHomeMovieResponse(Map<String, Object> movie, Map<Long, String> genreLookup, Map<Long, RatingSummaryDTO> ratingsCache) {
 
     String posterPath = (String) movie.get("poster_path");
     String title = movie.get("title") != null
@@ -43,8 +43,9 @@ public class MovieService{
     Double rating = extractRating(movie);
     List<String> genreNames = extractGenreNames(movie, genreLookup);
     String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
-        Long tmdbId = ((Number) movie.get("id")).longValue();
-        RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
+    Long tmdbId = ((Number) movie.get("id")).longValue();
+    // batch fetch all ratings at once, then loop through movies
+    RatingSummaryDTO summary = ratingsCache.getOrDefault(tmdbId, new RatingSummaryDTO(tmdbId, 0.0, 0L, null));
 
     return new HomeScreenMovieResponse(
           tmdbId,
@@ -106,6 +107,12 @@ public class MovieService{
       Map<Long, String> genreLookup = getGenreLookup();
 
       List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
+      
+      // batch fetch all ratings at once, then loop through movies
+      List<Long> movieIds = results.stream()
+          .map(m -> ((Number) m.get("id")).longValue())
+          .collect(Collectors.toList());
+      Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
 
       return new PaginatedResponse<MovieSearchResponse>(
         ((Number) response.get("page")).intValue(),
@@ -116,7 +123,7 @@ public class MovieService{
             List<String> genreNames = extractGenreNames(movie, genreLookup);
             String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
             Long tmdbId = ((Number) movie.get("id")).longValue();
-            RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
+            RatingSummaryDTO summary = ratingsCache.getOrDefault(tmdbId, new RatingSummaryDTO(tmdbId, 0.0, 0L, null));
 
             return new MovieSearchResponse(
               tmdbId,
@@ -143,11 +150,17 @@ public class MovieService{
 
     List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
     
+    // batch fetch all ratings at once, then loop through movies
+    List<Long> movieIds = results.stream()
+        .map(m -> ((Number) m.get("id")).longValue())
+        .collect(Collectors.toList());
+    Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
+    
     return new PaginatedResponse<HomeScreenMovieResponse>(
       ((Number) response.get("page")).intValue(),
       ((Number) response.get("total_pages")).intValue(),
       results.stream()
-          .map(movie -> mapToHomeMovieResponse(movie, genreLookup))
+          .map(movie -> mapToHomeMovieResponse(movie, genreLookup, ratingsCache))
           .collect(Collectors.toList())
     );
   }
@@ -169,12 +182,18 @@ public class MovieService{
     Map<Long, String> genreLookup = getGenreLookup();
 
     List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
+    
+    // batch fetch all ratings at once, then loop through movies
+    List<Long> movieIds = results.stream()
+        .map(m -> ((Number) m.get("id")).longValue())
+        .collect(Collectors.toList());
+    Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
 
     return new PaginatedResponse<HomeScreenMovieResponse>(
       ((Number) response.get("page")).intValue(),
       ((Number) response.get("total_pages")).intValue(),
       results.stream()
-        .map(movie -> mapToHomeMovieResponse(movie, genreLookup))
+        .map(movie -> mapToHomeMovieResponse(movie, genreLookup, ratingsCache))
         .collect(Collectors.toList())
     );
   }

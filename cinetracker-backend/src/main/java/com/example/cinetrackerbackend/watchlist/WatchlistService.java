@@ -33,8 +33,16 @@ public class WatchlistService{
 	  .orElseThrow(()->new ApiException("User not found", HttpStatus.NOT_FOUND));
 
     Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+    
+    if (movieData == null || movieData.isEmpty() || movieData.get("id") == null) {
+      throw new ApiException("Movie not found in TMDB database", HttpStatus.NOT_FOUND);
+    }
 
     String title = (String) movieData.get("title");
+    if (title == null || title.isBlank()) {
+      throw new ApiException("Invalid movie data: title is missing", HttpStatus.BAD_REQUEST);
+    }
+    
     String overview = (String) movieData.getOrDefault("overview", "");
 
     Double rating = movieData.get("vote_average") != null
