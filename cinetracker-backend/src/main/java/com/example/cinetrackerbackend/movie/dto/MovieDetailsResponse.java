@@ -18,6 +18,8 @@ public record MovieDetailsResponse(
   @JsonProperty("release_date") String releaseDateSnake,
   Integer releaseYear,
   String genre,
-  List<String> genreNames
+  List<String> genreNames,
+  Double averageRating,
+  Long ratingCount
 ) {
 }

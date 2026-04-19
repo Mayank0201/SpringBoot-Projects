@@ -30,4 +30,8 @@ public class HomeScreenMovieResponse{
 
   private List<String> genreNames;
 
+  private Double averageRating;
+
+  private Long ratingCount;
+
 }

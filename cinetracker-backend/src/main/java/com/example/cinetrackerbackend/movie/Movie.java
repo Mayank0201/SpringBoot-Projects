@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import jakarta.persistence.Transient;
 
 @Entity
 @Data
@@ -23,5 +24,11 @@ public class Movie{
   private String genre;
 
   private int releaseYear;
+
+  @Transient
+  private Double averageRating;
+
+  @Transient
+  private Long ratingCount;
 
 }

@@ -21,12 +21,12 @@ public class MovieController{
 
 
   @GetMapping("/search")
-  public PaginatedResponse<MovieSearchResponse> searchMovies(@RequestParam String query, @RequestParam(defaultValue = "1") int page){
+  public PaginatedResponse<MovieSearchResponse> searchMovies(@RequestParam("query") String query, @RequestParam(value = "page", defaultValue = "1") int page){
     return movieService.searchMovies(query,page);
   }
 
   @GetMapping("/popular")
-  public PaginatedResponse<HomeScreenMovieResponse> getPopularMovies(@RequestParam(defaultValue = "1") int page){
+  public PaginatedResponse<HomeScreenMovieResponse> getPopularMovies(@RequestParam(value = "page", defaultValue = "1") int page){
     return movieService.getPopularMovies(page);
   }
 
@@ -36,12 +36,12 @@ public class MovieController{
   }
 
   @GetMapping("/by-genre")
-  public PaginatedResponse<HomeScreenMovieResponse> getMoviesByGenre(@RequestParam Long genreId,@RequestParam(defaultValue = "1") int page){
+  public PaginatedResponse<HomeScreenMovieResponse> getMoviesByGenre(@RequestParam("genreId") Long genreId,@RequestParam(value = "page", defaultValue = "1") int page){
     return movieService.getMoviesByGenre(genreId,page);
   }
 
   @GetMapping("/details")
-  public MovieDetailsResponse getMovieDetails(@RequestParam Long movieId) {
+  public MovieDetailsResponse getMovieDetails(@RequestParam("movieId") Long movieId) {
     return movieService.getMovieDetails(movieId);
   }
 }

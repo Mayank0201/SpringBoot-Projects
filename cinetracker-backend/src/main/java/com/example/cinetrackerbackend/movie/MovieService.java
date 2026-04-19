@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Objects;
+import com.example.cinetrackerbackend.rating.RatingService;
+import com.example.cinetrackerbackend.rating.RatingSummaryDTO;
 
 import com.example.cinetrackerbackend.movie.dto.GenreResponse;
 import com.example.cinetrackerbackend.movie.dto.MovieSearchResponse;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 public class MovieService{
 
   private final TmdbClient tmdbClient;
+  private final RatingService ratingService;
 
   private static final String IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 
@@ -40,9 +43,11 @@ public class MovieService{
     Double rating = extractRating(movie);
     List<String> genreNames = extractGenreNames(movie, genreLookup);
     String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
+        Long tmdbId = ((Number) movie.get("id")).longValue();
+        RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
 
     return new HomeScreenMovieResponse(
-          ((Number) movie.get("id")).longValue(),
+          tmdbId,
           title,
           title,
           fullPosterUrl,
@@ -52,7 +57,9 @@ public class MovieService{
           releaseDate,
           extractReleaseYear(releaseDate),
           genre,
-          genreNames
+          genreNames,
+          summary.getAverageRating(),
+          summary.getRatingCount()
         );
   }
 
@@ -108,9 +115,11 @@ public class MovieService{
             Double rating = extractRating(movie);
             List<String> genreNames = extractGenreNames(movie, genreLookup);
             String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
+            Long tmdbId = ((Number) movie.get("id")).longValue();
+            RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
 
             return new MovieSearchResponse(
-              ((Number) movie.get("id")).longValue(),
+              tmdbId,
               movie.get("title") != null ? (String) movie.get("title") : (String) movie.get("name"),
               movie.get("poster_path") != null ? IMAGE_BASE_URL + (String) movie.get("poster_path") : null,
               (String) movie.getOrDefault("overview", ""),
@@ -119,7 +128,9 @@ public class MovieService{
               releaseDate,
               extractReleaseYear(releaseDate),
               genre,
-              genreNames
+              genreNames,
+              summary.getAverageRating(),
+              summary.getRatingCount()
             );
           }).collect(Collectors.toList()));
 
@@ -191,6 +202,7 @@ public class MovieService{
       .collect(Collectors.toList());
 
     String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
+    RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
 
     return new MovieDetailsResponse(
       tmdbId,
@@ -207,7 +219,9 @@ public class MovieService{
       releaseDate,
       extractReleaseYear(releaseDate),
       genre,
-      genreNames
+      genreNames,
+      summary.getAverageRating(),
+      summary.getRatingCount()
     );
   }
   

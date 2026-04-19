@@ -27,4 +27,8 @@ public class MovieSearchResponse{
   private String genre;
 
   private List<String> genreNames;
+
+  private Double averageRating;
+
+  private Long ratingCount;
 }
