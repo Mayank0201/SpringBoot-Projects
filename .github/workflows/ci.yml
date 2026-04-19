@@ -40,6 +40,10 @@ jobs:
         distribution: 'temurin'
         cache: gradle
     
+    - name: Make gradlew executable
+      working-directory: cinetracker-backend
+      run: chmod +x ./gradlew
+    
     - name: Build with Gradle
       working-directory: cinetracker-backend
       env:
