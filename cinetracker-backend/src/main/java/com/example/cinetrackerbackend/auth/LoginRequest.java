@@ -1,9 +1,13 @@
 package com.example.cinetrackerbackend.auth;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class LoginRequest{
     @NotBlank(message="Username is required")
     private String username;

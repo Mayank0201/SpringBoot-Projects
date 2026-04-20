@@ -33,6 +33,7 @@ public class Watchlist{
   private Long movieId;
   private String title;
   private String posterUrl;
+  //some movies have overview longer than 255 characters, so we need to use TEXT type in database
   @Column(columnDefinition = "TEXT")
   private String overview;
   private Double rating;

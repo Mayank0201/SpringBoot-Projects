@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.cinetrackerbackend.exception.ApiException;
 import com.example.cinetrackerbackend.movie.TmdbClient;
+import com.example.cinetrackerbackend.rating.RatingService;
+import com.example.cinetrackerbackend.rating.RatingSummaryDTO;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 
@@ -21,6 +23,7 @@ public class WatchlistService{
   private final WatchlistRepository watchlistRepo;
   private final UserRepository userRepo;
   private final TmdbClient tmdbClient;
+  private final RatingService ratingService;
 
   public WatchlistResponse addToWatchlist(Long userId,Long movieId){
     
@@ -111,10 +114,19 @@ public class WatchlistService{
   }
 
   public List<WatchlistResponse> getUserWatchlist(Long userId) {
-
-    return watchlistRepo.findByUser_Id(userId)
-        .stream()
-      .map(this::toResponse)
+    List<Watchlist> items = watchlistRepo.findByUser_Id(userId);
+    
+    if (items.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    List<Long> movieIds = items.stream()
+        .map(Watchlist::getMovieId)
+        .collect(Collectors.toList());
+    Map<Long, RatingSummaryDTO> ratings = ratingService.getRatingSummariesForMovies(movieIds);
+    
+    return items.stream()
+      .map(item -> toResponse(item, ratings.getOrDefault(item.getMovieId(), new RatingSummaryDTO(item.getMovieId(), 0.0, 0L, null))))
         .collect(Collectors.toList());
   }
 
@@ -129,7 +141,7 @@ public class WatchlistService{
     watchlistRepo.deleteByUser_IdAndMovieId(userId, movieId);
   }
 
-  private WatchlistResponse toResponse(Watchlist watchlist) {
+  private WatchlistResponse toResponse(Watchlist watchlist, RatingSummaryDTO ratings) {
     return new WatchlistResponse(
       watchlist.getId(),
       watchlist.getMovieId(),
@@ -142,6 +154,10 @@ public class WatchlistService{
       watchlist.getReleaseYear(),
       watchlist.getGenre()
     );
+  }
+
+  private WatchlistResponse toResponse(Watchlist watchlist) {
+    return toResponse(watchlist, new RatingSummaryDTO(watchlist.getMovieId(), 0.0, 0L, null));
   }
 
 }

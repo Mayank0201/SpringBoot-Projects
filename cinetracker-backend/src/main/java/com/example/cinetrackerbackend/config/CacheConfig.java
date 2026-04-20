@@ -14,12 +14,39 @@ public class CacheConfig{
 
   @Bean
   public RedisCacheManager cacheManager(RedisConnectionFactory factory){
+    RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofHours(1));
+
+    RedisCacheConfiguration ratingSummaryConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofMinutes(30));
+
+    RedisCacheConfiguration ratingSummariesBatchConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofMinutes(30));
+
+    RedisCacheConfiguration genresConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofHours(2));
+
+    RedisCacheConfiguration searchMoviesConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofMinutes(15));
+
+    RedisCacheConfiguration popularMoviesConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofMinutes(30));
+
+    RedisCacheConfiguration moviesByGenreConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofMinutes(30));
+
+    RedisCacheConfiguration movieDetailsConfig = RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(Duration.ofHours(2));
 
     return RedisCacheManager.builder(factory)
-		.cacheDefaults(
-			RedisCacheConfiguration.defaultCacheConfig()
-				.entryTtl(Duration.ofMinutes(10))
-			).build();
+      .cacheDefaults(defaultConfig)
+      .withCacheConfiguration("ratingSummary", ratingSummaryConfig)
+      .withCacheConfiguration("ratingSummariesBatch", ratingSummariesBatchConfig)
+      .withCacheConfiguration("genres", genresConfig)
+      .withCacheConfiguration("searchMovies", searchMoviesConfig)
+      .withCacheConfiguration("popularMovies", popularMoviesConfig)
+      .withCacheConfiguration("moviesByGenre", moviesByGenreConfig)
+      .withCacheConfiguration("movieDetails", movieDetailsConfig)
+      .build();
   }
-
 }

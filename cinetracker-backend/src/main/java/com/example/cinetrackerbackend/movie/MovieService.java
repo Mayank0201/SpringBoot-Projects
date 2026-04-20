@@ -8,8 +8,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import jakarta.annotation.PostConstruct;
 import com.example.cinetrackerbackend.rating.RatingService;
 import com.example.cinetrackerbackend.rating.RatingSummaryDTO;
+import com.example.cinetrackerbackend.exception.ApiException;
 
 import com.example.cinetrackerbackend.movie.dto.GenreResponse;
 import com.example.cinetrackerbackend.movie.dto.MovieSearchResponse;
@@ -18,6 +21,7 @@ import com.example.cinetrackerbackend.movie.dto.HomeScreenMovieResponse;
 import com.example.cinetrackerbackend.movie.dto.MovieDetailsResponse;
 
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -25,8 +29,18 @@ public class MovieService{
 
   private final TmdbClient tmdbClient;
   private final RatingService ratingService;
+  private Map<Long, String> genreCache = new ConcurrentHashMap<>();
 
   private static final String IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
+
+  @PostConstruct
+  public void initializeGenreCache() {
+    try {
+      genreCache = getGenreLookup();
+    } catch (Exception e) {
+      genreCache = new ConcurrentHashMap<>();
+    }
+  }
 
   private HomeScreenMovieResponse mapToHomeMovieResponse(Map<String, Object> movie, Map<Long, String> genreLookup, Map<Long, RatingSummaryDTO> ratingsCache) {
 
@@ -102,13 +116,11 @@ public class MovieService{
 
 
   public PaginatedResponse<MovieSearchResponse> searchMovies(String query,int page) {
-    
+    try {
       Map<String,Object> response=tmdbClient.searchMovies(query,page);
-      Map<Long, String> genreLookup = getGenreLookup();
 
       List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
       
-      // batch fetch all ratings at once, then loop through movies
       List<Long> movieIds = results.stream()
           .map(m -> ((Number) m.get("id")).longValue())
           .collect(Collectors.toList());
@@ -120,7 +132,7 @@ public class MovieService{
         results.stream().map(movie -> {
             String releaseDate = (String) movie.get("release_date");
             Double rating = extractRating(movie);
-            List<String> genreNames = extractGenreNames(movie, genreLookup);
+            List<String> genreNames = extractGenreNames(movie, genreCache);
             String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
             Long tmdbId = ((Number) movie.get("id")).longValue();
             RatingSummaryDTO summary = ratingsCache.getOrDefault(tmdbId, new RatingSummaryDTO(tmdbId, 0.0, 0L, null));
@@ -140,29 +152,32 @@ public class MovieService{
               summary.getRatingCount()
             );
           }).collect(Collectors.toList()));
-
+    } catch (Exception e) {
+      throw new ApiException("Error searching movies", HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 
   public PaginatedResponse<HomeScreenMovieResponse> getPopularMovies(int page){
+    try {
+      Map<String,Object> response=tmdbClient.getPopularMovies(page);
 
-    Map<String,Object> response=tmdbClient.getPopularMovies(page);
-    Map<Long, String> genreLookup = getGenreLookup();
-
-    List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
-    
-    // batch fetch all ratings at once, then loop through movies
-    List<Long> movieIds = results.stream()
-        .map(m -> ((Number) m.get("id")).longValue())
-        .collect(Collectors.toList());
-    Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
-    
-    return new PaginatedResponse<HomeScreenMovieResponse>(
-      ((Number) response.get("page")).intValue(),
-      ((Number) response.get("total_pages")).intValue(),
-      results.stream()
-          .map(movie -> mapToHomeMovieResponse(movie, genreLookup, ratingsCache))
-          .collect(Collectors.toList())
-    );
+      List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
+      
+      List<Long> movieIds = results.stream()
+          .map(m -> ((Number) m.get("id")).longValue())
+          .collect(Collectors.toList());
+      Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
+      
+      return new PaginatedResponse<HomeScreenMovieResponse>(
+        ((Number) response.get("page")).intValue(),
+        ((Number) response.get("total_pages")).intValue(),
+        results.stream()
+            .map(movie -> mapToHomeMovieResponse(movie, genreCache, ratingsCache))
+            .collect(Collectors.toList())
+      );
+    } catch (Exception e) {
+      throw new ApiException("Error fetching popular movies", HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 
   public List<GenreResponse> getGenres(){
@@ -178,70 +193,86 @@ public class MovieService{
   }
 
   public PaginatedResponse<HomeScreenMovieResponse> getMoviesByGenre(Long genreId,int page){
-    Map<String,Object> response=tmdbClient.getMoviesByGenre(genreId,page);
-    Map<Long, String> genreLookup = getGenreLookup();
+    try {
+      Map<String,Object> response=tmdbClient.getMoviesByGenre(genreId,page);
 
-    List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
-    
-    // batch fetch all ratings at once, then loop through movies
-    List<Long> movieIds = results.stream()
-        .map(m -> ((Number) m.get("id")).longValue())
-        .collect(Collectors.toList());
-    Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
+      List<Map<String,Object>> results=(List<Map<String,Object>>) response.get("results");
+      
+      List<Long> movieIds = results.stream()
+          .map(m -> ((Number) m.get("id")).longValue())
+          .collect(Collectors.toList());
+      Map<Long, RatingSummaryDTO> ratingsCache = ratingService.getRatingSummariesForMovies(movieIds);
 
-    return new PaginatedResponse<HomeScreenMovieResponse>(
-      ((Number) response.get("page")).intValue(),
-      ((Number) response.get("total_pages")).intValue(),
-      results.stream()
-        .map(movie -> mapToHomeMovieResponse(movie, genreLookup, ratingsCache))
-        .collect(Collectors.toList())
-    );
+      return new PaginatedResponse<HomeScreenMovieResponse>(
+        ((Number) response.get("page")).intValue(),
+        ((Number) response.get("total_pages")).intValue(),
+        results.stream()
+          .map(movie -> mapToHomeMovieResponse(movie, genreCache, ratingsCache))
+          .collect(Collectors.toList())
+      );
+    } catch (Exception e) {
+      throw new ApiException("Error fetching movies by genre", HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 
   public MovieDetailsResponse getMovieDetails(Long movieId) {
-    Map<String, Object> movie = tmdbClient.getMovieDetails(movieId);
+    try {
+      Map<String, Object> movie = tmdbClient.getMovieDetails(movieId);
+      
+      if (movie == null) {
+        throw new ApiException("Movie not found", HttpStatus.NOT_FOUND);
+      }
 
-    Long tmdbId = ((Number) movie.get("id")).longValue();
-    String title = movie.get("title") != null
-      ? (String) movie.get("title")
-      : (String) movie.get("name");
+      Long tmdbId = ((Number) movie.get("id")).longValue();
+      String title = movie.get("title") != null
+        ? (String) movie.get("title")
+        : (String) movie.get("name");
 
-    String posterPath = (String) movie.get("poster_path");
-    String posterUrl = posterPath != null
-      ? IMAGE_BASE_URL + posterPath
-      : null;
+      if (title == null || title.isBlank()) {
+        title = "Unknown";
+      }
 
-    String releaseDate = (String) movie.get("release_date");
-    Double rating = extractRating(movie);
+      String posterPath = (String) movie.get("poster_path");
+      String posterUrl = posterPath != null && !posterPath.isBlank()
+        ? IMAGE_BASE_URL + posterPath
+        : null;
 
-    List<Map<String, Object>> genres = (List<Map<String, Object>>) movie.getOrDefault("genres", Collections.emptyList());
-    List<String> genreNames = genres.stream()
-      .map(genre -> (String) genre.get("name"))
-      .filter(Objects::nonNull)
-      .collect(Collectors.toList());
+      String releaseDate = (String) movie.get("release_date");
+      Double rating = extractRating(movie);
 
-    String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
-    RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
+      List<Map<String, Object>> genres = (List<Map<String, Object>>) movie.getOrDefault("genres", Collections.emptyList());
+      List<String> genreNames = genres.stream()
+        .map(genre -> (String) genre.get("name"))
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
 
-    return new MovieDetailsResponse(
-      tmdbId,
-      tmdbId,
-      tmdbId,
-      title,
-      title,
-      posterUrl,
-      posterPath,
-      (String) movie.getOrDefault("overview", ""),
-      rating,
-      rating,
-      releaseDate,
-      releaseDate,
-      extractReleaseYear(releaseDate),
-      genre,
-      genreNames,
-      summary.getAverageRating(),
-      summary.getRatingCount()
-    );
+      String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
+      RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
+
+      return new MovieDetailsResponse(
+        tmdbId,
+        tmdbId,
+        tmdbId,
+        title,
+        title,
+        posterUrl,
+        posterPath,
+        (String) movie.getOrDefault("overview", ""),
+        rating,
+        rating,
+        releaseDate,
+        releaseDate,
+        extractReleaseYear(releaseDate),
+        genre,
+        genreNames,
+        summary.getAverageRating(),
+        summary.getRatingCount()
+      );
+    } catch (ApiException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ApiException("Error fetching movie details", HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
   
 }
