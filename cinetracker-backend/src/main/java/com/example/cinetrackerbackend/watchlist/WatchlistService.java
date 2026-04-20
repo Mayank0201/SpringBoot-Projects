@@ -32,7 +32,12 @@ public class WatchlistService{
     User user=userRepo.findById(userId)
 	  .orElseThrow(()->new ApiException("User not found", HttpStatus.NOT_FOUND));
 
-    Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+    Map<String, Object> movieData = null;
+    try {
+      movieData = tmdbClient.getMovieDetails(movieId);
+    } catch (Exception e) {
+      throw new ApiException("Unable to fetch movie details from TMDB: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
+    }
     
     if (movieData == null || movieData.isEmpty() || movieData.get("id") == null) {
       throw new ApiException("Movie not found in TMDB database", HttpStatus.NOT_FOUND);
@@ -40,33 +45,52 @@ public class WatchlistService{
 
     String title = (String) movieData.get("title");
     if (title == null || title.isBlank()) {
+      title = (String) movieData.get("name");
+    }
+    if (title == null || title.isBlank()) {
       throw new ApiException("Invalid movie data: title is missing", HttpStatus.BAD_REQUEST);
     }
     
     String overview = (String) movieData.getOrDefault("overview", "");
+    if (overview == null) {
+      overview = "";
+    }
 
-    Double rating = movieData.get("vote_average") != null
-      ? ((Number) movieData.get("vote_average")).doubleValue()
-      : 0.0;
+    Double rating = 0.0;
+    Object voteAvg = movieData.get("vote_average");
+    if (voteAvg != null && voteAvg instanceof Number) {
+      rating = ((Number) voteAvg).doubleValue();
+    }
 
     String posterPath = (String) movieData.get("poster_path");
-    String posterUrl = posterPath != null
+    String posterUrl = posterPath != null && !posterPath.isBlank()
         ? "https://image.tmdb.org/t/p/w500" + posterPath
         : null;
 
     String releaseDate = (String) movieData.get("release_date");
-    int releaseYear = releaseDate != null && releaseDate.length() >= 4
-        ? Integer.parseInt(releaseDate.substring(0, 4))
-        : 0;
+    if (releaseDate == null || releaseDate.isBlank()) {
+      releaseDate = null;
+    }
+    
+    int releaseYear = 0;
+    if (releaseDate != null && releaseDate.length() >= 4) {
+      try {
+        releaseYear = Integer.parseInt(releaseDate.substring(0, 4));
+      } catch (NumberFormatException e) {
+        releaseYear = 0;
+      }
+    }
 
     List<Map<String, Object>> genres = (List<Map<String, Object>>) movieData.getOrDefault("genres", Collections.emptyList());
-    String genre = genres.stream()
-      .map(genreMap -> (String) genreMap.get("name"))
-      .filter(Objects::nonNull)
-      .collect(Collectors.joining(", "));
-
-    if (genre.isBlank()) {
-      genre = "N/A";
+    String genre = "N/A";
+    if (genres != null && !genres.isEmpty()) {
+      genre = genres.stream()
+        .map(genreMap -> (String) genreMap.get("name"))
+        .filter(Objects::nonNull)
+        .collect(Collectors.joining(", "));
+      if (genre.isBlank()) {
+        genre = "N/A";
+      }
     }
 
     Watchlist watchlist = new Watchlist(

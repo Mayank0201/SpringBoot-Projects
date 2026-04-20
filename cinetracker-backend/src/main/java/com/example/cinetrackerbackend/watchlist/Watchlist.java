@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Column;
 
 import com.example.cinetrackerbackend.user.User;
 
@@ -32,6 +33,7 @@ public class Watchlist{
   private Long movieId;
   private String title;
   private String posterUrl;
+  @Column(columnDefinition = "TEXT")
   private String overview;
   private Double rating;
   private String releaseDate;
