@@ -1,6 +1,8 @@
 package com.example.cinetrackerbackend.rating;
 
+import com.example.cinetrackerbackend.common.ApiResponse;
 import com.example.cinetrackerbackend.user.User;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,54 +17,34 @@ public class RatingController {
     private final RatingService ratingService;
 
     @PutMapping("/{movieId}/rating")
-    public ResponseEntity<MovieRating> setRating(
+    public ResponseEntity<ApiResponse<MovieRating>> setRating(
             @PathVariable Long movieId,
-            @RequestBody RatingRequest request) {
-
-        if (request.getRating() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        try {
-            Long userId = getAuthenticatedUserId();
-            MovieRating rating = ratingService.setRating(movieId, userId, request.getRating());
-            return ResponseEntity.ok(rating);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+            @Valid @RequestBody RatingRequest request) {
+        Long userId = getAuthenticatedUserId();
+        MovieRating rating = ratingService.setRating(movieId, userId, request.getRating());
+        return ResponseEntity.ok(ApiResponse.success("Rating saved", 200, rating));
     }
 
     @DeleteMapping("/{movieId}/rating")
-    public ResponseEntity<Void> deleteRating(@PathVariable Long movieId) {
-
-        try {
-            Long userId = getAuthenticatedUserId();
-            ratingService.deleteRating(movieId, userId);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<Void>> deleteRating(@PathVariable Long movieId) {
+        Long userId = getAuthenticatedUserId();
+        ratingService.deleteRating(movieId, userId);
+        return ResponseEntity.ok(ApiResponse.success("Rating deleted", 200, null));
     }
 
     @GetMapping("/{movieId}/rating-summary")
-    public ResponseEntity<RatingSummaryDTO> getRatingSummary(
+    public ResponseEntity<ApiResponse<RatingSummaryDTO>> getRatingSummary(
             @PathVariable Long movieId,
             Authentication authentication) {
 
-        try {
-            RatingSummaryDTO summary;
-            if (authentication != null && authentication.getPrincipal() instanceof User user) {
-                Long userId = user.getId();
-                summary = ratingService.getRatingSummary(movieId, userId);
-            } else {
-                summary = ratingService.getRatingSummary(movieId);
-            }
-            return ResponseEntity.ok(summary);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+        RatingSummaryDTO summary;
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            Long userId = user.getId();
+            summary = ratingService.getRatingSummary(movieId, userId);
+        } else {
+            summary = ratingService.getRatingSummary(movieId);
         }
+        return ResponseEntity.ok(ApiResponse.success("Rating summary fetched", 200, summary));
     }
 
     private Long getAuthenticatedUserId() {

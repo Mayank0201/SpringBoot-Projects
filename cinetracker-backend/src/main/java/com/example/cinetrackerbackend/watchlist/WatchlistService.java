@@ -11,9 +11,12 @@ import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.cinetrackerbackend.exception.ApiException;
 import com.example.cinetrackerbackend.movie.TmdbClient;
+import com.example.cinetrackerbackend.movie.dto.PaginatedResponse;
 import com.example.cinetrackerbackend.rating.RatingService;
 import com.example.cinetrackerbackend.rating.RatingSummaryDTO;
 import java.util.Map;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
 @Service
@@ -113,11 +116,15 @@ public class WatchlistService{
     return toResponse(saved);
   }
 
-  public List<WatchlistResponse> getUserWatchlist(Long userId) {
-    List<Watchlist> items = watchlistRepo.findByUser_Id(userId);
+  public PaginatedResponse<WatchlistResponse> getUserWatchlist(Long userId, int page, int size) {
+    int safePage = Math.max(page, 1);
+    int safeSize = Math.min(Math.max(size, 1), 50);
+
+    Page<Watchlist> pageData = watchlistRepo.findByUser_Id(userId, PageRequest.of(safePage - 1, safeSize));
+    List<Watchlist> items = pageData.getContent();
     
     if (items.isEmpty()) {
-      return Collections.emptyList();
+      return new PaginatedResponse<>(safePage, pageData.getTotalPages(), Collections.emptyList());
     }
     
     List<Long> movieIds = items.stream()
@@ -125,13 +132,14 @@ public class WatchlistService{
         .collect(Collectors.toList());
     Map<Long, RatingSummaryDTO> ratings = ratingService.getRatingSummariesForMovies(movieIds);
     
-    return items.stream()
+    List<WatchlistResponse> results = items.stream()
       .map(item -> toResponse(item, ratings.getOrDefault(item.getMovieId(), new RatingSummaryDTO(item.getMovieId(), 0.0, 0L, null))))
         .collect(Collectors.toList());
+
+    return new PaginatedResponse<>(pageData.getNumber() + 1, pageData.getTotalPages(), results);
   }
 
-  @Transactional//entitymanager needs to be open for delete operation, so we need to add transactional annotation here
-  //so em knows to flush the changes to the database after the method execution is completed
+  @Transactional
   public void removeFromWatchlist(Long userId, Long movieId){
 
     if (!watchlistRepo.existsByUser_IdAndMovieId(userId, movieId)) {

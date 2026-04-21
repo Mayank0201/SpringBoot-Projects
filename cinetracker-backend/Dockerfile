@@ -1,18 +1,15 @@
-#FROM gradle:8.7-jdk17 AS build
+FROM eclipse-temurin:17-jre
 
-#WORKDIR /app
-
-#COPY . .
-
-#RUN chmod +x gradlew
-#RUN ./gradlew clean build -x test
-
-FROM eclipse-temurin:17-jdk
+RUN groupadd --system app && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app
 
 COPY build/libs/*.jar app.jar
 
+RUN chown app:app /app/app.jar
+
+USER app
+
 EXPOSE 8080
 
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=75","-XX:+UseG1GC","-jar","app.jar"]

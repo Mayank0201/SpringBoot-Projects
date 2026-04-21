@@ -61,7 +61,8 @@ public class RateLimitFilter implements Filter {
             chain.doFilter(request, response);
         } else {
             httpResponse.setStatus(429);
-            httpResponse.getWriter().write("Too many requests");
+            httpResponse.setContentType("application/json");
+            httpResponse.getWriter().write("{\"success\":false,\"message\":\"Too many requests\",\"status\":429,\"timestamp\":null,\"data\":null}");
         }
     }
 }

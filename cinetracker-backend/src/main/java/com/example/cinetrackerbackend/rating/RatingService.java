@@ -6,9 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import java.util.Optional;
-import java.util.Map;
-import java.util.List;
-import java.util.HashMap;
 import com.example.cinetrackerbackend.exception.ApiException;
 import org.springframework.http.HttpStatus;
 

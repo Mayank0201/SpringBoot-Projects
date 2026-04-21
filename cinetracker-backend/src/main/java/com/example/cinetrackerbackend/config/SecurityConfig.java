@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig{
 
+  private final RateLimitFilter rateLimitFilter;
   private final JwtFilter jwtFilter;
 
   @Bean
@@ -26,13 +27,17 @@ public class SecurityConfig{
     .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     response.setContentType("application/json");
-    response.getWriter().write("{\"message\":\"Unauthorized\",\"status\":401}");
+    response.getWriter().write("{\"success\":false,\"message\":\"Unauthorized\",\"status\":401,\"timestamp\":null,\"data\":null}");
     }))
 	  .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**","/swagger-ui/**",
         "/v3/api-docs/**",
-        "/swagger-ui.html")
+        "/swagger-ui.html",
+        "/actuator/health",
+        "/actuator/health/**",
+        "/actuator/info")
     .permitAll().anyRequest().authenticated()
-    ).addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class);
+    ).addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+      .addFilterAfter(jwtFilter, RateLimitFilter.class);
     
     return http.build();
 

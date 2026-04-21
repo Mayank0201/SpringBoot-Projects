@@ -30,9 +30,19 @@ public class User {
     @Column(name = "refresh_token_expires_at")
     private Instant refreshTokenExpiresAt;
 
+    @Column(name = "is_email_verified", nullable = false)
+    private Boolean isEmailVerified = false;
+
+    @Column(name = "email_verification_token")
+    private String emailVerificationToken;
+
+    @Column(name = "email_verification_token_expires_at")
+    private Instant emailVerificationTokenExpiresAt;
+
     public User(String username, String email, String password) {
         this.username=username;
         this.email=email;
         this.password=password;
+        this.isEmailVerified = false;
     }
 }
