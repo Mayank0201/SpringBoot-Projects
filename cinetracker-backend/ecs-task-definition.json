@@ -1,0 +1,85 @@
+{
+  "family": "cinetracker-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::167497311363:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "cinetracker-app",
+      "image": "167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        },
+        {
+          "name": "SPRING_DATASOURCE_URL",
+          "value": "jdbc:postgresql://cinetracker-db.cxy628usk8uc.ap-south-1.rds.amazonaws.com:5432/cinetracker"
+        },
+        {
+          "name": "SPRING_DATA_REDIS_HOST",
+          "value": "cinetracker-redis.n4yvzb.0001.aps1.cache.amazonaws.com"
+        },
+        {
+          "name": "SPRING_DATA_REDIS_PORT",
+          "value": "6379"
+        },
+        {
+          "name": "SPRING_DATASOURCE_USERNAME",
+          "value": "postgres"
+        },
+        {
+          "name": "MAIL_HOST",
+          "value": "smtp.gmail.com"
+        },
+        {
+          "name": "MAIL_PORT",
+          "value": "587"
+        },
+        {
+          "name": "MAIL_USERNAME",
+          "value": "cinetracker.noreply@gmail.com"
+        },
+        {
+          "name": "APP_BACKEND_BASE_URL (Aws use alb ,else moving to render anyways)",
+          "value": "http://13.201.1.55:8080"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SPRING_DATASOURCE_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/db-password-rJjT3c"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/jwt-secret-DoijOf"
+        },
+        {
+          "name": "MAIL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/mail-password-ylepIy"
+        },
+        {
+          "name": "TMDB_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/tmdb-api-key-Wil5k1"        
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cinetracker-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

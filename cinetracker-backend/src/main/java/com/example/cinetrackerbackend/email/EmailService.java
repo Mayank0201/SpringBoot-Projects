@@ -7,6 +7,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -17,8 +20,8 @@ public class EmailService {
     @Value("${spring.mail.username:}")
     private String fromEmail;
 
-    @Value("${app.frontend.base-url:http://localhost:3000}")
-    private String frontendBaseUrl;
+    @Value("${app.backend.base-url:http://localhost:8080}")
+    private String backendBaseUrl;
 
     public void sendVerificationEmail(String userEmail, String username, String verificationToken) {
         // Log token for dev testing
@@ -31,7 +34,9 @@ public class EmailService {
         }
 
         try {
-            String verificationLink = frontendBaseUrl + "/verify-email?token=" + verificationToken;
+            String encodedToken = URLEncoder.encode(verificationToken, StandardCharsets.UTF_8);
+            String normalizedBaseUrl = backendBaseUrl == null ? "http://localhost:8080" : backendBaseUrl.replaceAll("/+$", "");
+            String verificationLink = normalizedBaseUrl + "/auth/verify-email?token=" + encodedToken;
             String subject = "Verify Your Email - CineTracker";
             String body = buildVerificationEmailBody(username, verificationLink);
 

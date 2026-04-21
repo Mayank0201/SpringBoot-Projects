@@ -1,0 +1,208 @@
+CINETRACKER BACKEND - AWS ECS FARGATE DEBUG RUNBOOK
+Date: 2026-04-21
+Project: cinetracker-backend
+Region: ap-south-1
+
+====================================================================
+1) PURPOSE OF THIS DOCUMENT
+====================================================================
+This file captures the full troubleshooting journey that took roughly 7 hours,
+so future deployments can avoid the same failures.
+
+Goals achieved in this session:
+- Spring Boot app successfully starts on ECS Fargate.
+- Database connectivity to RDS works.
+- Redis host configuration works.
+- Secrets injection works (including TMDB_API_KEY).
+- Public IP was retrieved and reachable after security-group fix.
+- Email verification links were updated to support one-click verification.
+
+====================================================================
+2) FINAL WORKING ARCHITECTURE (AS OF THIS SESSION)
+====================================================================
+Compute:
+- ECS Cluster: cinetracker
+- ECS Service: cinetracker-backend
+- Task Definition Family: cinetracker-backend
+- Launch Type: FARGATE
+- CPU/Memory: 256/512
+- Container Port: 8080
+
+Database:
+- RDS PostgreSQL endpoint:
+  cinetracker-db.cxy628usk8uc.ap-south-1.rds.amazonaws.com:5432
+- Database name: cinetracker
+
+Cache:
+- Redis endpoint:
+  cinetracker-redis.n4yvzb.0001.aps1.cache.amazonaws.com:6379
+
+Secrets Manager:
+- cinetracker/db-password
+- cinetracker/jwt-secret
+- cinetracker/mail-password
+- cinetracker/tmdb-api-key
+
+Security Group (ECS task SG):
+- sg-0454b2b74b14f6441
+- Inbound required: tcp/8080 from 0.0.0.0/0 (or restricted source IP)
+
+====================================================================
+3) MAJOR ISSUES ENCOUNTERED AND ROOT CAUSES
+====================================================================
+Issue A: App could not connect to DB (timeouts / fallback localhost behavior)
+Root cause:
+- Environment variables in task definition did not match Spring Boot binding names.
+- Example of wrong names that caused breakage:
+  DATASOURCE_URL, DB_PASSWORD, SPRING_REDIS_HOST, SPRING_REDIS_PORT
+- Correct names needed by the app:
+  SPRING_DATASOURCE_URL
+  SPRING_DATASOURCE_USERNAME
+  SPRING_DATASOURCE_PASSWORD
+  SPRING_DATA_REDIS_HOST
+  SPRING_DATA_REDIS_PORT
+
+Issue B: RDS connection succeeded but DB did not exist
+Root cause:
+- PostgreSQL database cinetracker had not been created.
+
+Issue C: Schema validation failed (missing table movie)
+Root cause:
+- App was running with ddl-auto=validate before schema existed.
+- Temporary switch to ddl-auto=update was required to bootstrap tables.
+
+Issue D: TMDB_API_KEY unresolved placeholder (app failed startup)
+Root cause:
+- Service kept running older task definition revision (:5) without new secret mapping.
+- A new revision was registered, but service was not explicitly switched to it.
+
+Issue E: API timeout from Postman/browser despite app logs showing startup success
+Root cause:
+- ECS security group allowed only port 80/22, not container port 8080.
+
+====================================================================
+4) CRITICAL LESSONS LEARNED
+====================================================================
+1. Task definition file confusion can waste hours.
+   Keep exactly one source of truth (ecs-task-definition.json).
+
+2. Force deployment alone does NOT switch to latest revision.
+   update-service must specify --task-definition when needed.
+
+3. Always verify what revision service is actually running:
+   aws ecs describe-services ... --query services[0].taskDefinition
+
+4. If app starts in logs but API times out, check SG inbound rules first.
+
+5. Spring property fallbacks can mask broken env injection.
+   Validate effective values via startup logs.
+
+====================================================================
+5) COMMANDS THAT WERE IMPORTANT
+====================================================================
+Check running revision:
+aws ecs describe-services --cluster cinetracker --services cinetracker-backend --region ap-south-1 --query "services[0].taskDefinition" --output text
+
+Register new revision:
+aws ecs register-task-definition --cli-input-json file://ecs-task-definition.json --region ap-south-1
+
+Deploy exact revision:
+aws ecs update-service --cluster cinetracker --service cinetracker-backend --task-definition cinetracker-backend:11 --force-new-deployment --region ap-south-1
+
+Tail logs:
+aws logs tail /ecs/cinetracker-backend --follow --region ap-south-1 --since 30s
+
+Confirm secret exists and has value:
+aws secretsmanager describe-secret --secret-id cinetracker/tmdb-api-key --region ap-south-1
+aws secretsmanager get-secret-value --secret-id cinetracker/tmdb-api-key --region ap-south-1
+
+Inspect task-definition secret mappings:
+aws ecs describe-task-definition --task-definition cinetracker-backend --region ap-south-1 --query "taskDefinition.containerDefinitions[0].secrets" --output json
+
+Inspect ECS SG inbound rules:
+aws ec2 describe-security-groups --group-ids sg-0454b2b74b14f6441 --region ap-south-1 --query "SecurityGroups[0].IpPermissions" --output table
+
+Open 8080 inbound:
+aws ec2 authorize-security-group-ingress --group-id sg-0454b2b74b14f6441 --protocol tcp --port 8080 --cidr 0.0.0.0/0 --region ap-south-1
+
+Get running task public IP:
+TASK_ARN=$(aws ecs list-tasks --cluster cinetracker --service-name cinetracker-backend --region ap-south-1 --query "taskArns[0]" --output text)
+ENI=$(aws ecs describe-tasks --cluster cinetracker --tasks $TASK_ARN --region ap-south-1 --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value[0]" --output text)
+aws ec2 describe-network-interfaces --network-interface-ids $ENI --region ap-south-1 --query "NetworkInterfaces[0].Association.PublicIp" --output text
+
+====================================================================
+6) FINAL KNOWN GOOD CONFIGURATION NOTES
+====================================================================
+Task definition environment names that worked:
+- SPRING_PROFILES_ACTIVE=prod
+- SPRING_DATASOURCE_URL=jdbc:postgresql://.../cinetracker
+- SPRING_DATASOURCE_USERNAME=postgres
+- SPRING_DATA_REDIS_HOST=...
+- SPRING_DATA_REDIS_PORT=6379
+- MAIL_HOST=smtp.gmail.com
+- MAIL_PORT=587
+- MAIL_USERNAME=cinetracker.noreply@gmail.com
+- APP_BACKEND_BASE_URL=http://13.201.1.55:8080 (added for one-click verify links)
+
+Task definition secrets that worked:
+- SPRING_DATASOURCE_PASSWORD -> Secrets Manager ARN
+- JWT_SECRET -> Secrets Manager ARN
+- MAIL_PASSWORD -> Secrets Manager ARN
+- TMDB_API_KEY -> Secrets Manager ARN
+
+Important:
+- Hardcoding task public IP in APP_BACKEND_BASE_URL is only a short-term setup.
+- Fargate task public IP can change after redeploy/restart.
+- Long-term stable solution: use ALB + Route53 domain, then set APP_BACKEND_BASE_URL to that domain.
+
+====================================================================
+7) EMAIL VERIFICATION FLOW UPDATE (IMPLEMENTED IN CODE)
+====================================================================
+Previous behavior:
+- Verification email link was based on frontend URL fallback localhost:3000.
+- Clicking email link did not reliably verify in deployed backend-only flow.
+
+Current behavior after this session:
+- Email link now points to backend endpoint:
+  {APP_BACKEND_BASE_URL}/auth/verify-email?token=...
+- Backend now supports GET /auth/verify-email?token=... for one-click verification.
+- Existing POST /auth/verify-email with JSON body remains supported.
+
+====================================================================
+8) DEPLOYMENT CHECKLIST FOR NEXT TIME
+====================================================================
+Before deploy:
+[ ] Build/push latest container image to ECR
+[ ] Ensure ecs-task-definition.json has correct env names (SPRING_* conventions)
+[ ] Ensure all required secrets exist in Secrets Manager
+[ ] Register task definition and note revision number
+
+Deploy:
+[ ] Update service with explicit revision
+[ ] Watch logs until "Started CinetrackerBackendApplication"
+[ ] Verify no PlaceholderResolutionException errors
+
+Network:
+[ ] Confirm ECS SG inbound includes tcp/8080 (or ALB path if using ALB)
+
+Functional smoke tests:
+[ ] GET /actuator/health or configured health endpoint
+[ ] Register user
+[ ] Verify email link click works
+[ ] Login works after verification
+
+Post-success cleanup:
+[ ] Revert ddl-auto from update to validate (after schema is stable)
+[ ] Remove any stale/legacy task-definition files to avoid confusion
+
+====================================================================
+9) THINGS TO IMPROVE LATER (RECOMMENDED)
+====================================================================
+1. Add ALB and domain to avoid public-IP churn.
+2. Add HTTPS termination on ALB.
+3. Move APP_BACKEND_BASE_URL to stable domain.
+4. Restrict SG ingress to ALB SG rather than 0.0.0.0/0 if ALB is added.
+5. Add CI checks that fail if required env vars are missing.
+6. Add startup log statement that prints non-sensitive resolved config context.
+
+End of runbook.

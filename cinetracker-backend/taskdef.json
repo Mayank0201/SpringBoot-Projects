@@ -1,0 +1,125 @@
+{
+    "taskDefinition": {
+        "taskDefinitionArn": "arn:aws:ecs:ap-south-1:167497311363:task-definition/cinetracker-backend:2",
+        "containerDefinitions": [
+            {
+                "name": "cinetracker-app",
+                "image": "167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:latest",
+                "cpu": 0,
+                "portMappings": [
+                    {
+                        "containerPort": 8080,
+                        "hostPort": 8080,
+                        "protocol": "tcp"
+                    }
+                ],
+                "essential": true,
+                "environment": [
+                    {
+                        "name": "MAIL_PORT",
+                        "value": "587"
+                    },
+                    {
+                        "name": "MAIL_USERNAME",
+                        "value": "cinetracker.noreply@gmail.com"
+                    },
+                    {
+                        "name": "SPRING_DATASOURCE_USERNAME",
+                        "value": "postgres"
+                    },
+                    {
+                        "name": "SPRING_DATA_REDIS_HOST",
+                        "value": "cinetracker-redis.n4yvzb.0001.aps1.cache.amazonaws.com"
+                    },
+                    {
+                        "name": "MAIL_HOST",
+                        "value": "smtp.gmail.com"
+                    },
+                    {
+                        "name": "SPRING_PROFILES_ACTIVE",
+                        "value": "prod"
+                    },
+                    {
+                        "name": "SPRING_DATA_REDIS_PORT",
+                        "value": "6379"
+                    },
+                    {
+                        "name": "SPRING_DATASOURCE_URL",
+                        "value": "jdbc:postgresql://cinetracker-db.cxy628usk8uc.ap-south-1.rds.amazonaws.com:5432/cinetracker"
+                    }
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "secrets": [
+                    {
+                        "name": "SPRING_DATASOURCE_PASSWORD",
+                        "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/db-password-rJjT3c"
+                    },
+                    {
+                        "name": "JWT_SECRET",
+                        "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/jwt-secret-DoijOf"
+                    },
+                    {
+                        "name": "MAIL_PASSWORD",
+                        "valueFrom": "arn:aws:secretsmanager:ap-south-1:167497311363:secret:cinetracker/mail-password-ylepIy"
+                    }
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": "/ecs/cinetracker-backend",
+                        "awslogs-region": "ap-south-1",
+                        "awslogs-stream-prefix": "ecs"
+                    }
+                },
+                "systemControls": []
+            }
+        ],
+        "family": "cinetracker-backend",
+        "executionRoleArn": "arn:aws:iam::167497311363:role/ecsTaskExecutionRole",
+        "networkMode": "awsvpc",
+        "revision": 2,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {
+                "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+            },
+            {
+                "name": "ecs.capability.execution-role-awslogs"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.ecr-auth"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+            },
+            {
+                "name": "ecs.capability.secrets.asm.environment-variables"
+            },
+            {
+                "name": "ecs.capability.execution-role-ecr-pull"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+            },
+            {
+                "name": "ecs.capability.task-eni"
+            }
+        ],
+        "placementConstraints": [],
+        "compatibilities": [
+            "EC2",
+            "FARGATE",
+            "MANAGED_INSTANCES"
+        ],
+        "requiresCompatibilities": [
+            "FARGATE"
+        ],
+        "cpu": "256",
+        "memory": "512",
+        "registeredAt": "2026-04-21T12:29:08.240000+05:30",
+        "registeredBy": "arn:aws:iam::167497311363:root"
+    },
+    "tags": []
+}

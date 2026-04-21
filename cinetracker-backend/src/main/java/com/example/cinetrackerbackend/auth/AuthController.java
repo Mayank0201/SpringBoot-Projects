@@ -44,6 +44,12 @@ public class AuthController{
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully", HttpStatus.OK.value(), response));
     }
 
+    @GetMapping({"/verify-email", "/verify-email/"})
+    public ResponseEntity<ApiResponse<VerifyEmailResponse>> verifyEmailByLink(@RequestParam String token) {
+        VerifyEmailResponse response = authService.verifyEmail(token);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", HttpStatus.OK.value(), response));
+    }
+
     @PostMapping({"/resend-verification", "/resend-verification/"})
     public ResponseEntity<ApiResponse<String>> resendVerificationEmail(@Valid @RequestBody ResendVerificationRequest request) {
         authService.resendVerificationEmail(request.getEmail());
