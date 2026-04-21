@@ -1,0 +1,80 @@
+name: Deploy CineTracker Backend to AWS ECS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cinetracker-backend/**'
+      - '.github/workflows/deploy-cinetracker-ecs.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: gradle
+
+      - name: Build JAR with Gradle
+        working-directory: cinetracker-backend
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build -x test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Login to Amazon ECR
+        run: aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 167497311363.dkr.ecr.ap-south-1.amazonaws.com
+
+      - name: Build Docker image
+        working-directory: cinetracker-backend
+        run: docker build -t 167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:${{ github.sha }} .
+
+      - name: Tag Docker image as latest
+        run: docker tag 167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:${{ github.sha }} 167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:latest
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push 167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:${{ github.sha }}
+          docker push 167497311363.dkr.ecr.ap-south-1.amazonaws.com/cinetracker-backend:latest
+
+      - name: Register ECS task definition
+        working-directory: cinetracker-backend
+        run: |
+          REVISION=$(aws ecs register-task-definition --cli-input-json file://ecs-task-definition.json --region ap-south-1 --query taskDefinition.revision --output text)
+          echo "Registered task definition revision: $REVISION"
+          echo "REVISION=$REVISION" >> $GITHUB_ENV
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster cinetracker \
+            --service cinetracker-backend \
+            --task-definition cinetracker-backend:${{ env.REVISION }} \
+            --force-new-deployment \
+            --region ap-south-1
+          echo "✓ ECS service updated with new task definition revision"
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster cinetracker \
+            --services cinetracker-backend \
+            --region ap-south-1
+          echo "✓ Deployment successful!"
