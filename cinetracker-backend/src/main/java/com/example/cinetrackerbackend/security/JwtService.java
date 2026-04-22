@@ -62,6 +62,26 @@ public class JwtService {
                 .getBody();
     }
 
+    public String generateEmailVerificationToken(String username, String email, String encodedPassword) {
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("email", email)
+                .claim("password", encodedPassword)
+                .claim(TOKEN_TYPE_CLAIM, "email_verification")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000L)) // 24 hours
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public Claims extractEmailVerificationClaims(String token) {
+        Claims claims = extractAllClaims(token);
+        if (!"email_verification".equals(claims.get(TOKEN_TYPE_CLAIM))) {
+            throw new IllegalArgumentException("Invalid token type");
+        }
+        return claims;
+    }
+
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
     }

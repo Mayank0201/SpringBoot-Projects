@@ -10,7 +10,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import com.example.cinetrackerbackend.security.JwtService;
+import io.jsonwebtoken.Claims;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -39,26 +41,25 @@ public class AuthService{
       throw new ApiException("Email address already in use", HttpStatus.CONFLICT);
     }
 
-    User user = new User(username, email, passwordEncoder.encode(password));
-    user.setIsEmailVerified(false);
+    String encodedPassword = passwordEncoder.encode(password);
 
-    // Generate verification token
-    String verificationToken = generateVerificationToken();
-    String tokenHash = hashToken(verificationToken);
-    user.setEmailVerificationToken(tokenHash);
-    user.setEmailVerificationTokenExpiresAt(Instant.now().plusSeconds(24 * 60 * 60)); // 24 hours
+    // Generate verification token securely containing the user details
+    String verificationToken = jwtService.generateEmailVerificationToken(username, email, encodedPassword);
 
-    User savedUser = userRepository.save(user);
+    // Send verification email asynchronously so the API responds instantly
+    CompletableFuture.runAsync(() -> {
+      try {
+        emailService.sendVerificationEmail(email, username, verificationToken);
+      } catch (Exception e) {
+        log.error("Failed to send verification email for user: {}", username, e);
+      }
+    });
 
-    // Send verification email
-    try {
-      emailService.sendVerificationEmail(email, username, verificationToken);
-    } catch (Exception e) {
-      log.error("Failed to send verification email for user: {}", username, e);
-      // Continue even if email fails, but log it
-    }
-
-    return savedUser;
+    // We do NOT save the user to the database yet. 
+    // They will be saved only upon successful email verification.
+    User transientUser = new User(username, email, encodedPassword);
+    transientUser.setIsEmailVerified(false);
+    return transientUser;
   }
 
   public AuthTokenResponse login(String username, String password){
@@ -118,44 +119,46 @@ public class AuthService{
 
   public VerifyEmailResponse verifyEmail(String verificationToken) {
     String normalizedToken = verificationToken == null ? "" : verificationToken.trim();
-    String tokenHash = hashToken(normalizedToken);
+    
+    Claims claims;
+    try {
+      claims = jwtService.extractEmailVerificationClaims(normalizedToken);
+    } catch (Exception e) {
+      throw new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED);
+    }
 
-    User user = userRepository.findByEmailVerificationToken(tokenHash)
-        .filter(u -> u.getEmailVerificationTokenExpiresAt() != null && 
-                    u.getEmailVerificationTokenExpiresAt().isAfter(Instant.now()))
-        .orElseThrow(() -> new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED));
+    String username = claims.getSubject();
+    String email = claims.get("email", String.class);
+    String encodedPassword = claims.get("password", String.class);
+
+    // Check again to avoid race conditions
+    if (userRepository.existsByUsername(username)) {
+      throw new ApiException("Username is already taken by a verified account.", HttpStatus.CONFLICT);
+    }
+    if (userRepository.existsByEmail(email)) {
+      throw new ApiException("Email is already taken by a verified account.", HttpStatus.CONFLICT);
+    }
+
+    // Now save to database
+    User user = new User(username, email, encodedPassword);
     user.setIsEmailVerified(true);
-
-    user.setEmailVerificationToken(null);
-    user.setEmailVerificationTokenExpiresAt(null);
+    
     User updatedUser = userRepository.save(user);
 
-    log.info("Email verified for user: {}", user.getUsername());
+    log.info("Email verified and user saved to database: {}", user.getUsername());
     return VerifyEmailResponse.of(updatedUser.getId(), updatedUser.getUsername(), updatedUser.getEmail());
   }
 
   public void resendVerificationEmail(String email) {
-    User user = userRepository.findByEmail(email)
-        .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
-
-    if (user.getIsEmailVerified()) {
-      throw new ApiException("Email is already verified", HttpStatus.BAD_REQUEST);
+    // Since we no longer save unverified users to the database, we don't have their details to resend.
+    // Instead, if the email exists, they are already verified. 
+    // If it doesn't, they need to register again.
+    
+    if (userRepository.existsByEmail(email)) {
+      throw new ApiException("This email is already verified. You can log in.", HttpStatus.BAD_REQUEST);
     }
 
-    // Generate new verification token
-    String verificationToken = generateVerificationToken();
-    user.setEmailVerificationToken(hashToken(verificationToken));
-    user.setEmailVerificationTokenExpiresAt(Instant.now().plusSeconds(24 * 60 * 60)); // 24 hours
-    userRepository.save(user);
-
-    // Send verification email
-    try {
-      emailService.sendResendVerificationEmail(email, user.getUsername(), verificationToken);
-      log.info("Resent verification email to: {}", email);
-    } catch (Exception e) {
-      log.error("Failed to resend verification email to: {}", email, e);
-      throw new ApiException("Failed to send verification email", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    throw new ApiException("User not found or unverified. Since we do not store unverified users for privacy, please register again to receive a new verification link.", HttpStatus.NOT_FOUND);
   }
 
   private String generateVerificationToken() {

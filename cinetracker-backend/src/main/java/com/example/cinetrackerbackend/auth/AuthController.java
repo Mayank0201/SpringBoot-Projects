@@ -23,7 +23,9 @@ public class AuthController{
             request.getEmail(),
             request.getPassword());
 
+        // The ID will be 0 since the user is not saved to DB yet
         AuthUserResponse response = new AuthUserResponse(createdUser.getId(), createdUser.getUsername(), createdUser.getEmail());
+        
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("User registered successfully. Please check your email to verify your account.", HttpStatus.CREATED.value(), response));
     }
