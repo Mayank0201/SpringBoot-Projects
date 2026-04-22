@@ -25,8 +25,7 @@ WORKDIR /app
 # Copy the built jar from the build stage
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Standard Render port
-EXPOSE 8080
+# The application will use the PORT environment variable provided by Render
 
 # Run the application with optimized memory settings for 512MB RAM
 ENTRYPOINT ["java", "-Xms256m", "-Xmx400m", "-XX:+UseG1GC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
