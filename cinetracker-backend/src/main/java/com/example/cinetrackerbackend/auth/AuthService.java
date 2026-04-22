@@ -120,19 +120,12 @@ public class AuthService{
     String normalizedToken = verificationToken == null ? "" : verificationToken.trim();
     String tokenHash = hashToken(normalizedToken);
 
-    Optional<User> userOpt = userRepository.findAll().stream()
-        .filter(u -> u.getEmailVerificationToken() != null && 
-                    u.getEmailVerificationToken().equals(tokenHash) &&
-                    u.getEmailVerificationTokenExpiresAt() != null &&
+    User user = userRepository.findByEmailVerificationToken(tokenHash)
+        .filter(u -> u.getEmailVerificationTokenExpiresAt() != null && 
                     u.getEmailVerificationTokenExpiresAt().isAfter(Instant.now()))
-        .findFirst();
-
-    if (userOpt.isEmpty()) {
-      throw new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED);
-    }
-
-    User user = userOpt.get();
+        .orElseThrow(() -> new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED));
     user.setIsEmailVerified(true);
+
     user.setEmailVerificationToken(null);
     user.setEmailVerificationTokenExpiresAt(null);
     User updatedUser = userRepository.save(user);

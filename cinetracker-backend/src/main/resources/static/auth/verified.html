@@ -81,6 +81,12 @@
             line-height: 1.6;
         }
 
+        .redirect-msg {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
         .btn {
             display: inline-block;
             background-color: var(--primary);
@@ -118,14 +124,30 @@
         <h1>Email Verified!</h1>
         <p>Your account is now fully active. You can return to the CineTracker app to start exploring movies.</p>
         
-        <!-- This link tries to open the app via deep link. 
-             If the app isn't installed, it won't do anything on most browsers 
-             but we can also add a redirect logic later if needed. -->
-        <a href="cinetracker://login" class="btn">Open CineTracker</a>
+        <p class="redirect-msg" id="redirectMsg">Redirecting to the app in <span id="countdown">3</span> seconds…</p>
+
+        <a href="cinetracker://login" class="btn" id="openAppBtn">Open CineTracker</a>
 
         <div class="footer">
             &copy; 2026 MM Apps
         </div>
     </div>
+
+    <script>
+        // auto-redirect to the app after a short countdown
+        var seconds = 3;
+        var countdownEl = document.getElementById('countdown');
+        var redirectMsg = document.getElementById('redirectMsg');
+
+        var timer = setInterval(function() {
+            seconds--;
+            countdownEl.textContent = seconds;
+            if (seconds <= 0) {
+                clearInterval(timer);
+                redirectMsg.textContent = 'Redirecting…';
+                window.location.href = 'cinetracker://login';
+            }
+        }, 1000);
+    </script>
 </body>
 </html>
