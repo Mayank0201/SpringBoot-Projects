@@ -47,10 +47,19 @@ public class ScheduledTasks {
     }
 
     /**
-     * Health check log every 10 minutes
+     * Keep-alive ping to prevent Render free tier from sleeping every 10 minutes
      */
-    @Scheduled(cron = "0 */10 * * * *")
-    public void hourlyHealthCheck() {
-        log.debug("Health check: Application is running normally");
+    @Scheduled(cron = "0 */14 * * * *")
+    public void keepAlive() {
+        log.info("Executing keep-alive ping to prevent Render from sleeping...");
+        try {
+            java.net.URL url = new java.net.URL("https://springboot-projects-4m5x.onrender.com/actuator/health");
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            int responseCode = connection.getResponseCode();
+            log.info("Keep-alive ping successful. Response code: {}", responseCode);
+        } catch (Exception e) {
+            log.error("Error during keep-alive ping", e);
+        }
     }
 }
