@@ -1,14 +1,21 @@
 package com.example.cinetrackerbackend.rating;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Index;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 
 @Entity
-@Table(name="movie_ratings",uniqueConstraints= {
-   @UniqueConstraint(columnNames={"movie_id","user_id"})
-})
+// movie_ratings table stores user scores for specific movies
+@Table(name="movie_ratings",
+    uniqueConstraints= {
+        @UniqueConstraint(columnNames={"movie_id","user_id"})
+    },
+    indexes = {
+        @Index(name = "idx_movie_ratings_movie_id", columnList = "movie_id")
+    }
+)
 
 @Data
 public class MovieRating{

@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Column;
+import jakarta.persistence.Index;
 
 import com.example.cinetrackerbackend.user.User;
 
@@ -18,8 +19,14 @@ import com.example.cinetrackerbackend.user.User;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
+// watchlist table tracks movies users want to watch later
 @Table(
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "movie_id"})
+    name = "watchlist",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "movie_id"}),
+    indexes = {
+        @Index(name = "idx_watchlist_user_id", columnList = "user_id"),
+        @Index(name = "idx_watchlist_movie_id", columnList = "movie_id")
+    }
 )
 public class Watchlist{
 

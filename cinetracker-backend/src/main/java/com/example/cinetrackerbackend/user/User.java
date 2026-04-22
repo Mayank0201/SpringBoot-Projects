@@ -8,6 +8,7 @@ import java.time.Instant;
 @Entity
 @RequiredArgsConstructor
 @Data
+// users table stores the core user account information
 @Table(name="users")
 public class User {
 
