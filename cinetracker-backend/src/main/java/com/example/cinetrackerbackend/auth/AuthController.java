@@ -6,8 +6,10 @@ import com.example.cinetrackerbackend.user.User;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+import java.net.URI;
 
 @RestController
 @RequestMapping("/auth")
@@ -45,9 +47,17 @@ public class AuthController{
     }
 
     @GetMapping({"/verify-email", "/verify-email/"})
-    public ResponseEntity<ApiResponse<VerifyEmailResponse>> verifyEmailByLink(@RequestParam String token) {
-        VerifyEmailResponse response = authService.verifyEmail(token);
-        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", HttpStatus.OK.value(), response));
+    public ResponseEntity<Void> verifyEmailByLink(@RequestParam String token) {
+        try {
+            authService.verifyEmail(token);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/auth/verified.html"))
+                .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/auth/error.html"))
+                .build();
+        }
     }
 
     @PostMapping({"/resend-verification", "/resend-verification/"})
