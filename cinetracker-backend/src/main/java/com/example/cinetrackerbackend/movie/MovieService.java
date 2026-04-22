@@ -153,7 +153,7 @@ public class MovieService{
             );
           }).collect(Collectors.toList()));
     } catch (Exception e) {
-      throw new ApiException("Error searching movies", HttpStatus.SERVICE_UNAVAILABLE);
+      throw new ApiException("Error searching movies: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -176,7 +176,7 @@ public class MovieService{
             .collect(Collectors.toList())
       );
     } catch (Exception e) {
-      throw new ApiException("Error fetching popular movies", HttpStatus.SERVICE_UNAVAILABLE);
+      throw new ApiException("Error fetching popular movies: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -211,7 +211,7 @@ public class MovieService{
           .collect(Collectors.toList())
       );
     } catch (Exception e) {
-      throw new ApiException("Error fetching movies by genre", HttpStatus.SERVICE_UNAVAILABLE);
+      throw new ApiException("Error fetching movies by genre: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -271,7 +271,7 @@ public class MovieService{
     } catch (ApiException e) {
       throw e;
     } catch (Exception e) {
-      throw new ApiException("Error fetching movie details", HttpStatus.SERVICE_UNAVAILABLE);
+      throw new ApiException("Error fetching movie details: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
   

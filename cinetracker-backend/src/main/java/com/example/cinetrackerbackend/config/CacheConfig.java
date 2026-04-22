@@ -8,9 +8,16 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import java.time.Duration;
 
+import org.springframework.cache.annotation.CachingConfigurer;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
+import org.springframework.cache.Cache;
+import lombok.extern.slf4j.Slf4j;
+
 @Configuration
 @EnableCaching
-public class CacheConfig{
+@Slf4j
+public class CacheConfig implements CachingConfigurer {
 
   @Bean
   public RedisCacheManager cacheManager(RedisConnectionFactory factory){
@@ -48,5 +55,30 @@ public class CacheConfig{
       .withCacheConfiguration("moviesByGenre", moviesByGenreConfig)
       .withCacheConfiguration("movieDetails", movieDetailsConfig)
       .build();
+  }
+
+  @Override
+  public CacheErrorHandler errorHandler() {
+    return new SimpleCacheErrorHandler() {
+      @Override
+      public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+        log.error("Cache GET error for key {}: {}", key, exception.getMessage());
+      }
+
+      @Override
+      public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+        log.error("Cache PUT error for key {}: {}", key, exception.getMessage());
+      }
+
+      @Override
+      public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+        log.error("Cache EVICT error for key {}: {}", key, exception.getMessage());
+      }
+
+      @Override
+      public void handleCacheClearError(RuntimeException exception, Cache cache) {
+        log.error("Cache CLEAR error for cache {}: {}", cache.getName(), exception.getMessage());
+      }
+    };
   }
 }
