@@ -28,5 +28,5 @@ COPY --from=build /app/build/libs/*.jar app.jar
 # Standard Render port
 EXPOSE 8080
 
-# Run the application with optimized memory settings
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+UseG1GC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+# Run the application with optimized memory settings for 512MB RAM
+ENTRYPOINT ["java", "-Xms256m", "-Xmx400m", "-XX:+UseG1GC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
