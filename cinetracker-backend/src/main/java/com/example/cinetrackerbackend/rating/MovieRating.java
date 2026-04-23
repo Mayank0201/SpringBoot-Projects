@@ -6,6 +6,8 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 
+import java.io.Serializable;
+
 @Entity
 // movie_ratings table stores user scores for specific movies
 @Table(name="movie_ratings",
@@ -19,7 +21,8 @@ import java.time.LocalDateTime;
 )
 
 @Data
-public class MovieRating{
+public class MovieRating implements Serializable {
+    private static final long serialVersionUID = 1L;
 
    @Id
    @GeneratedValue(strategy = GenerationType.IDENTITY)
