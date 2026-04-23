@@ -14,6 +14,9 @@ import org.springframework.http.HttpStatus;
 public class RatingService {
 
     private final MovieRatingRepository ratingRepository;
+    private final com.example.cinetrackerbackend.user.UserRepository userRepository;
+    private final com.example.cinetrackerbackend.movie.MovieRepository movieRepository;
+    private final com.example.cinetrackerbackend.movie.TmdbClient tmdbClient;
 
     @Transactional
     @CacheEvict(value = {"userRating", "ratingSummary", "ratingSummariesBatch"}, allEntries = true)
@@ -26,21 +29,29 @@ public class RatingService {
             throw new ApiException("Rating must be in 0.5 increments", HttpStatus.BAD_REQUEST);
         }
 
+        // Ensure movie exists in local movie table for foreign key constraint
+        ensureMovieExists(movieId);
+
         try {
-            Optional<MovieRating> existingRating = ratingRepository.findByMovieIdAndUserId(movieId, userId);
+            Optional<MovieRating> existingRating = ratingRepository.findByMovieIdAndUser_Id(movieId, userId);
 
             MovieRating movieRating;
             if (existingRating.isPresent()) {
                 movieRating = existingRating.get();
                 movieRating.setRating(rating);
             } else {
+                com.example.cinetrackerbackend.user.User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+                
                 movieRating = new MovieRating();
                 movieRating.setMovieId(movieId);
-                movieRating.setUserId(userId);
+                movieRating.setUser(user);
                 movieRating.setRating(rating);
             }
 
             return ratingRepository.save(movieRating);
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
             throw new ApiException("Error saving rating: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -50,7 +61,7 @@ public class RatingService {
     @CacheEvict(value = {"userRating", "ratingSummary", "ratingSummariesBatch"}, allEntries = true)
     public void deleteRating(Long movieId, Long userId) {
         try {
-            ratingRepository.deleteByMovieIdAndUserId(movieId, userId);
+            ratingRepository.deleteByMovieIdAndUser_Id(movieId, userId);
         } catch (Exception e) {
             throw new ApiException("Error deleting rating: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -60,7 +71,7 @@ public class RatingService {
     public RatingSummaryDTO getRatingSummary(Long movieId, Long userId) {
         try {
             RatingSummaryProjection summary = ratingRepository.getRatingSummary(movieId);
-            Optional<MovieRating> userRating = ratingRepository.findByMovieIdAndUserId(movieId, userId);
+            Optional<MovieRating> userRating = ratingRepository.findByMovieIdAndUser_Id(movieId, userId);
 
             return new RatingSummaryDTO(
                 movieId,
@@ -119,6 +130,48 @@ public class RatingService {
                 fallback.put(movieId, new RatingSummaryDTO(movieId, 0.0, 0L, null));
             }
             return fallback;
+        }
+    }
+
+    private void ensureMovieExists(Long movieId) {
+        if (movieRepository.existsById(movieId)) {
+            return;
+        }
+
+        try {
+            java.util.Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+            if (movieData == null || movieData.isEmpty()) {
+                return;
+            }
+
+            String title = (String) movieData.get("title");
+            if (title == null || title.isBlank()) {
+                title = (String) movieData.get("name");
+            }
+
+            String releaseDate = (String) movieData.get("release_date");
+            Integer releaseYear = null;
+            if (releaseDate != null && releaseDate.length() >= 4) {
+                try {
+                    releaseYear = Integer.parseInt(releaseDate.substring(0, 4));
+                } catch (NumberFormatException ignored) {}
+            }
+
+            java.util.List<java.util.Map<String, Object>> genres = (java.util.List<java.util.Map<String, Object>>) movieData.getOrDefault("genres", java.util.Collections.emptyList());
+            String genre = genres.stream()
+                .map(g -> (String) g.get("name"))
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.joining(", "));
+
+            com.example.cinetrackerbackend.movie.Movie movie = new com.example.cinetrackerbackend.movie.Movie();
+            movie.setId(movieId);
+            movie.setTitle(title);
+            movie.setGenre(genre.isBlank() ? "N/A" : genre);
+            movie.setReleaseYear(releaseYear != null ? releaseYear : 0);
+
+            movieRepository.save(movie);
+        } catch (Exception e) {
+            // Log or handle error if necessary
         }
     }
 }

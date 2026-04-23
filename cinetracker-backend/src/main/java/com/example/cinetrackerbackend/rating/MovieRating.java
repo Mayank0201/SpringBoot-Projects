@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames={"movie_id","user_id"})
     },
     indexes = {
-        @Index(name = "idx_movie_ratings_movie_id", columnList = "movie_id")
+        @Index(name = "idx_movie_ratings_movie_id", columnList = "movie_id"),
+        @Index(name = "idx_movie_ratings_user_id", columnList = "user_id")
     }
 )
 
@@ -27,8 +28,9 @@ public class MovieRating{
     @Column(name = "movie_id", nullable = false)
     private Long movieId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private com.example.cinetrackerbackend.user.User user;
 
     @Column(nullable = false)
     private Double rating;

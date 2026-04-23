@@ -22,6 +22,7 @@ import com.example.cinetrackerbackend.movie.dto.MovieDetailsResponse;
 
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class MovieService{
 
   private final TmdbClient tmdbClient;
   private final RatingService ratingService;
+  private final MovieRepository movieRepository;
   private Map<Long, String> genreCache = new ConcurrentHashMap<>();
 
   private static final String IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
@@ -272,6 +274,45 @@ public class MovieService{
       throw e;
     } catch (Exception e) {
       throw new ApiException("Error fetching movie details: " + e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Transactional
+  public void ensureMovieExists(Long movieId) {
+    if (movieRepository.existsById(movieId)) {
+      return;
+    }
+
+    try {
+      Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+      if (movieData == null || movieData.isEmpty()) {
+        return;
+      }
+
+      String title = (String) movieData.get("title");
+      if (title == null || title.isBlank()) {
+        title = (String) movieData.get("name");
+      }
+
+      String releaseDate = (String) movieData.get("release_date");
+      Integer releaseYear = extractReleaseYear(releaseDate);
+
+      List<Map<String, Object>> genres = (List<Map<String, Object>>) movieData.getOrDefault("genres", Collections.emptyList());
+      String genre = genres.stream()
+          .map(g -> (String) g.get("name"))
+          .filter(Objects::nonNull)
+          .collect(Collectors.joining(", "));
+
+      Movie movie = new Movie();
+      movie.setId(movieId);
+      movie.setTitle(title);
+      movie.setGenre(genre.isBlank() ? "N/A" : genre);
+      movie.setReleaseYear(releaseYear != null ? releaseYear : 0);
+
+      movieRepository.save(movie);
+    } catch (Exception e) {
+      // Log error but don't fail if we can't save movie metadata
+      // (Though foreign key will fail later if we don't)
     }
   }
   

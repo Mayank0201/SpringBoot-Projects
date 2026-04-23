@@ -27,6 +27,7 @@ public class WatchlistService{
   private final UserRepository userRepo;
   private final TmdbClient tmdbClient;
   private final RatingService ratingService;
+  private final com.example.cinetrackerbackend.movie.MovieService movieService;
 
   public WatchlistResponse addToWatchlist(Long userId,Long movieId){
     
@@ -99,6 +100,9 @@ public class WatchlistService{
       }
     }
 
+    // Ensure movie exists in local movie table for foreign key constraint
+    movieService.ensureMovieExists(movieId);
+
     Watchlist watchlist = new Watchlist(
         null,
         user,
@@ -156,7 +160,7 @@ public class WatchlistService{
       watchlist.getTitle(),
       watchlist.getPosterUrl(),
       watchlist.getOverview(),
-      watchlist.getRating(),
+      ratings.getAverageRating() != 0 ? ratings.getAverageRating() : watchlist.getRating(),
       watchlist.getRating(),
       watchlist.getReleaseDate(),
       watchlist.getReleaseYear(),

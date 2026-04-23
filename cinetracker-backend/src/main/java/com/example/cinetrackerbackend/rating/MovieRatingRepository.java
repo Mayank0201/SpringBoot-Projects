@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MovieRatingRepository extends JpaRepository<MovieRating, Long>{
 
-   Optional<MovieRating> findByMovieIdAndUserId(Long movieId, Long userId);
+   Optional<MovieRating> findByMovieIdAndUser_Id(Long movieId, Long userId);
 
    @Query(value = "select " + "round(avg(cast(rating as decimal)),1) as averageRating, " +
 		  "count(*) as ratingCount " + "from movie_ratings " +
@@ -21,6 +21,6 @@ public interface MovieRatingRepository extends JpaRepository<MovieRating, Long>{
           "from movie_ratings where movie_id IN :movieIds group by movie_id", nativeQuery = true)
    List<RatingSummaryProjection> getRatingSummariesForMovies(@Param("movieIds") List<Long> movieIds);
 
-   void deleteByMovieIdAndUserId(Long movieId,Long userId);
+   void deleteByMovieIdAndUser_Id(Long movieId,Long userId);
 
 }
