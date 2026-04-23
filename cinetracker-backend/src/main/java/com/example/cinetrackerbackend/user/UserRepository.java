@@ -16,9 +16,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
     Optional<User> findByEmailVerificationToken(String emailVerificationToken);
 
-    
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.emailVerificationToken = null, u.emailVerificationTokenExpiresAt = null WHERE u.emailVerificationTokenExpiresAt < ?1")
-    int deleteByEmailVerificationTokenExpiresAtBefore(Instant expiresAt);
+    int clearExpiredVerificationTokens(Instant expiresAt);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE User u SET u.refreshTokenHash = null, u.refreshTokenExpiresAt = null WHERE u.refreshTokenExpiresAt < ?1")
+    int clearExpiredRefreshTokens(Instant now);
 }

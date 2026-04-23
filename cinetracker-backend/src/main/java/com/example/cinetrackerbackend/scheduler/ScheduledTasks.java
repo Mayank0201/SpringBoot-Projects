@@ -25,10 +25,26 @@ public class ScheduledTasks {
         log.info("Starting cleanup of expired email verification tokens...");
         try {
             Instant now = Instant.now();
-            int deletedCount = userRepository.deleteByEmailVerificationTokenExpiresAtBefore(now);
-            log.info("Cleanup completed. Deleted {} expired verification tokens.", deletedCount);
+            int deletedCount = userRepository.clearExpiredVerificationTokens(now);
+            log.info("Cleanup completed. cleared {} expired verification tokens.", deletedCount);
         } catch (Exception e) {
             log.error("Error during verification token cleanup", e);
+        }
+    }
+
+    /**
+     * Clean up expired refresh tokens once a day at midnight
+     * Format: second minute hour day month dayOfWeek
+     */
+    @Scheduled(cron = "0 0 0 * * *")
+    public void cleanupExpiredRefreshTokens() {
+        log.info("starting cleanup of expired refresh tokens...");
+        try {
+            Instant now = Instant.now();
+            int clearedCount = userRepository.clearExpiredRefreshTokens(now);
+            log.info("cleanup completed. cleared {} expired refresh tokens.", clearedCount);
+        } catch (Exception e) {
+            log.error("error during refresh token cleanup", e);
         }
     }
 
