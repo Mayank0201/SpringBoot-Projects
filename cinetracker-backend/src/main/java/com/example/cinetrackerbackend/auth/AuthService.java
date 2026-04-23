@@ -16,9 +16,12 @@ import java.util.concurrent.CompletableFuture;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -30,6 +33,7 @@ public class AuthService{
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
   private final EmailService emailService;
+  private final StringRedisTemplate stringRedisTemplate;
 
   public User register(String username, String email, String password){
 
@@ -46,10 +50,21 @@ public class AuthService{
     // Generate verification token securely containing the user details
     String verificationToken = jwtService.generateEmailVerificationToken(username, email, encodedPassword);
 
+    String shortToken = UUID.randomUUID().toString().replace("-", "");
+    boolean useShortToken = false;
+    try {
+      stringRedisTemplate.opsForValue().set("email_verify:" + shortToken, verificationToken, Duration.ofHours(24));
+      useShortToken = true;
+    } catch (Exception e) {
+      log.warn("Redis is unavailable, falling back to long JWT token for email verification", e);
+    }
+    
+    String finalToken = useShortToken ? shortToken : verificationToken;
+
     // Send verification email asynchronously so the API responds instantly
     CompletableFuture.runAsync(() -> {
       try {
-        emailService.sendVerificationEmail(email, username, verificationToken);
+        emailService.sendVerificationEmail(email, username, finalToken);
       } catch (Exception e) {
         log.error("Failed to send verification email for user: {}", username, e);
       }
@@ -120,6 +135,23 @@ public class AuthService{
   public VerifyEmailResponse verifyEmail(String verificationToken) {
     String normalizedToken = verificationToken == null ? "" : verificationToken.trim();
     
+    if (normalizedToken.length() < 100) {
+      try {
+        String longToken = stringRedisTemplate.opsForValue().get("email_verify:" + normalizedToken);
+        if (longToken != null) {
+          normalizedToken = longToken;
+          stringRedisTemplate.delete("email_verify:" + verificationToken.trim());
+        } else {
+          throw new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED);
+        }
+      } catch (ApiException e) {
+        throw e;
+      } catch (Exception e) {
+        log.error("Failed to connect to Redis while verifying email", e);
+        throw new ApiException("Verification service is currently unavailable. Please try again later.", HttpStatus.SERVICE_UNAVAILABLE);
+      }
+    }
+
     Claims claims;
     try {
       claims = jwtService.extractEmailVerificationClaims(normalizedToken);
