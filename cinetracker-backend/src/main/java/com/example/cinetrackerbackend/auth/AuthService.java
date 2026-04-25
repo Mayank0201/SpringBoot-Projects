@@ -126,10 +126,17 @@ public class AuthService{
     }
 
     String newAccessToken = jwtService.generateAccessToken(user);
+    String newRefreshToken = jwtService.generateRefreshToken(user);
+
+    // Update user with new refresh token hash and expiration (Refresh Token Rotation)
+    user.setRefreshTokenHash(hashToken(newRefreshToken));
+    user.setRefreshTokenExpiresAt(jwtService.extractExpiration(newRefreshToken).toInstant());
+    userRepository.save(user);
+
     long expiresInSeconds = jwtService.extractExpiration(newAccessToken).toInstant().getEpochSecond()
         - Instant.now().getEpochSecond();
 
-    return RefreshTokenResponse.of(newAccessToken, Math.max(expiresInSeconds, 0));
+    return RefreshTokenResponse.of(newAccessToken, newRefreshToken, Math.max(expiresInSeconds, 0));
   }
 
   public VerifyEmailResponse verifyEmail(String verificationToken) {

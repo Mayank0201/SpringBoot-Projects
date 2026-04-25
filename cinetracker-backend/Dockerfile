@@ -28,4 +28,4 @@ COPY --from=build /app/build/libs/*.jar app.jar
 # The application will use the PORT environment variable provided by Render
 
 # Run the application with optimized memory settings for 512MB RAM
-ENTRYPOINT ["java", "-Xms256m", "-Xmx400m", "-XX:+UseG1GC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-Xss256k", "-XX:TieredStopAtLevel=1", "-XX:MaxMetaspaceSize=128m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

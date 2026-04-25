@@ -1,14 +1,14 @@
 package com.example.cinetrackerbackend.config;
 
 import com.example.cinetrackerbackend.security.JwtService;
-
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import jakarta.servlet.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -18,14 +18,14 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-public class RateLimitFilter implements Filter {
+public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Map<String, Bucket> bucketCache = new ConcurrentHashMap<>();
-
     private final JwtService jwtService;
 
     private Bucket createNewBucket() {
-        Bandwidth limit = Bandwidth.simple(40, Duration.ofMinutes(1));
+        // Increase to 60 requests per minute (1 per second average)
+        Bandwidth limit = Bandwidth.simple(60, Duration.ofMinutes(1));
         return Bucket.builder().addLimit(limit).build();
     }
 
@@ -34,14 +34,10 @@ public class RateLimitFilter implements Filter {
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-        String authHeader = httpRequest.getHeader("Authorization");
-
+        String authHeader = request.getHeader("Authorization");
         String key;
 
         try {
@@ -49,20 +45,26 @@ public class RateLimitFilter implements Filter {
                 String token = authHeader.substring(7);
                 key = jwtService.extractUsername(token);
             } else {
-                key = httpRequest.getRemoteAddr();
+                key = request.getRemoteAddr();
             }
         } catch (Exception e) {
-            key = httpRequest.getRemoteAddr(); 
+            key = request.getRemoteAddr(); 
         }
 
         Bucket bucket = resolveBucket(key);
+        
+        // Add rate limit headers to the response
+        response.addHeader("X-Rate-Limit-Remaining", String.valueOf(bucket.getAvailableTokens()));
 
         if (bucket.tryConsume(1)) {
-            chain.doFilter(request, response);
+            filterChain.doFilter(request, response);
         } else {
-            httpResponse.setStatus(429);
-            httpResponse.setContentType("application/json");
-            httpResponse.getWriter().write("{\"success\":false,\"message\":\"Too many requests\",\"status\":429,\"timestamp\":null,\"data\":null}");
+            response.setStatus(429);
+            response.setContentType("application/json");
+            
+            // X-Rate-Limit-Retry-After-Seconds header
+            response.addHeader("X-Rate-Limit-Retry-After-Seconds", "2"); 
+            response.getWriter().write("{\"success\":false,\"message\":\"Too many requests. Please try again in a few seconds.\",\"status\":429,\"timestamp\":null,\"data\":null}");
         }
     }
 }

@@ -39,8 +39,14 @@ public class GlobalExceptionHandler{
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Object>> handleGenericException(Exception ex) {
+    // In production, we don't want to expose internal exception messages
+    String message = "An unexpected error occurred. Please try again later.";
+    
+    // Log the actual exception for debugging
+    // log.error("Unhandled exception: ", ex); 
+
     return new ResponseEntity<>(
-      ApiResponse.error(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value(), null),
+      ApiResponse.error(message, HttpStatus.INTERNAL_SERVER_ERROR.value(), null),
       HttpStatus.INTERNAL_SERVER_ERROR
     );
   }
