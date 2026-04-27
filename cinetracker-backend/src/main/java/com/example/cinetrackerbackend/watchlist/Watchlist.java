@@ -12,6 +12,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Index;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 
 import com.example.cinetrackerbackend.user.User;
 
@@ -25,7 +27,8 @@ import com.example.cinetrackerbackend.user.User;
     uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "movie_id"}),
     indexes = {
         @Index(name = "idx_watchlist_user_id", columnList = "user_id"),
-        @Index(name = "idx_watchlist_movie_id", columnList = "movie_id")
+        @Index(name = "idx_watchlist_movie_id", columnList = "movie_id"),
+        @Index(name = "idx_watchlist_status", columnList = "status")
     }
 )
 public class Watchlist{
@@ -47,5 +50,9 @@ public class Watchlist{
   private String releaseDate;
   private int releaseYear;
   private String genre;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private WatchlistStatus status = WatchlistStatus.PENDING;
 
 }

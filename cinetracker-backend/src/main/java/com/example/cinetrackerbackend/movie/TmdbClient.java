@@ -60,4 +60,23 @@ public class TmdbClient {
     return restTemplate.getForObject(url, Map.class);
   }
 
+  @Cacheable("movieCredits")
+  public Map<String, Object> getMovieCredits(Long movieId) {
+    String url = tmdbConfig.getBaseUrl() + "/movie/" + movieId + "/credits?api_key=" + tmdbConfig.getApiKey();
+    return restTemplate.getForObject(url, Map.class);
+  }
+
+  @Cacheable("movieVideos")
+  public Map<String, Object> getMovieVideos(Long movieId) {
+    String url = tmdbConfig.getBaseUrl() + "/movie/" + movieId + "/videos?api_key=" + tmdbConfig.getApiKey();
+    return restTemplate.getForObject(url, Map.class);
+  }
+
+  @Cacheable("movieRecommendations")
+  public Map<String, Object> getRecommendations(Long movieId) {
+    String url = tmdbConfig.getBaseUrl() + "/movie/" + movieId + "/recommendations?api_key=" + tmdbConfig.getApiKey();
+    return restTemplate.getForObject(url, Map.class);
+  }
+
 }
+

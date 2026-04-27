@@ -17,18 +17,25 @@ public class RatingService {
     private final com.example.cinetrackerbackend.user.UserRepository userRepository;
     private final com.example.cinetrackerbackend.movie.MovieRepository movieRepository;
     private final com.example.cinetrackerbackend.movie.TmdbClient tmdbClient;
+    private final com.example.cinetrackerbackend.gamification.GamificationService gamificationService;
+
 
     @Transactional
     @CacheEvict(value = {"userRating", "ratingSummary", "ratingSummariesBatch"}, allEntries = true)
-    public MovieRating setRating(Long movieId, Long userId, Double rating) {
+    public MovieRating setRating(Long movieId, Long userId, Double rating, String comment) {
         if (rating == null || rating < 1.0 || rating > 5.0) {
             throw new ApiException("Rating must be between 1.0 and 5.0", HttpStatus.BAD_REQUEST);
         }
-        
+
+        if (com.example.cinetrackerbackend.common.ContentModerator.containsSlur(comment)) {
+            throw new ApiException("Review contains offensive language. Please keep it respectful.", HttpStatus.BAD_REQUEST);
+        }
+
         if ((rating * 2) % 1 != 0) {
             throw new ApiException("Rating must be in 0.5 increments", HttpStatus.BAD_REQUEST);
         }
 
+        
         // Ensure movie exists in local movie table for foreign key constraint
         ensureMovieExists(movieId);
 
@@ -36,9 +43,11 @@ public class RatingService {
             Optional<MovieRating> existingRating = ratingRepository.findByMovieIdAndUser_Id(movieId, userId);
 
             MovieRating movieRating;
-            if (existingRating.isPresent()) {
+            boolean isNew = existingRating.isEmpty();
+            if (!isNew) {
                 movieRating = existingRating.get();
                 movieRating.setRating(rating);
+                movieRating.setComment(comment);
             } else {
                 com.example.cinetrackerbackend.user.User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
@@ -47,15 +56,27 @@ public class RatingService {
                 movieRating.setMovieId(movieId);
                 movieRating.setUser(user);
                 movieRating.setRating(rating);
+                movieRating.setComment(comment);
             }
 
-            return ratingRepository.save(movieRating);
+            MovieRating saved = ratingRepository.save(movieRating);
+            
+            // Award XP only for new ratings or first reviews
+            if (isNew) {
+                gamificationService.awardXpWithLimit(userId, com.example.cinetrackerbackend.gamification.GamificationService.XP_RATE_MOVIE, "RATE", "Rated movie ID: " + movieId);
+            }
+
+
+
+            return saved;
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
             throw new ApiException("Error saving rating: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+
 
     @Transactional
     @CacheEvict(value = {"userRating", "ratingSummary", "ratingSummariesBatch"}, allEntries = true)
@@ -133,7 +154,28 @@ public class RatingService {
         }
     }
 
+    public org.springframework.data.domain.Page<MovieRating> getMovieReviews(Long movieId, int page, int size) {
+        return ratingRepository.findByMovieIdOrderByCreatedAtDesc(movieId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+    }
+
+    public org.springframework.data.domain.Page<MovieRating> getUserReviews(Long userId, int page, int size) {
+        if (!userRepository.existsById(userId)) {
+            throw new ApiException("User not found", HttpStatus.NOT_FOUND);
+        }
+        return ratingRepository.findByUser_IdOrderByCreatedAtDesc(userId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+    }
+
+    @Transactional
+    public void markAsHelpful(Long ratingId) {
+        ratingRepository.findById(ratingId).ifPresent(rating -> {
+            rating.setHelpfulCount(rating.getHelpfulCount() + 1);
+            ratingRepository.save(rating);
+        });
+    }
+
     private void ensureMovieExists(Long movieId) {
+
+
         if (movieRepository.existsById(movieId)) {
             return;
         }

@@ -23,6 +23,15 @@ public class Movie{
   private String genre;
 
   private int releaseYear;
+  
+  @jakarta.persistence.Column(name = "created_at", nullable = false, updatable = false)
+  private java.time.LocalDateTime createdAt;
+
+  @jakarta.persistence.PrePersist
+  protected void onCreate() {
+      createdAt = java.time.LocalDateTime.now();
+  }
+
 
   @Transient
   private Double averageRating;

@@ -12,6 +12,12 @@ public interface MovieRatingRepository extends JpaRepository<MovieRating, Long>{
 
    Optional<MovieRating> findByMovieIdAndUser_Id(Long movieId, Long userId);
 
+   org.springframework.data.domain.Page<MovieRating> findByMovieIdOrderByCreatedAtDesc(Long movieId, org.springframework.data.domain.Pageable pageable);
+
+   org.springframework.data.domain.Page<MovieRating> findByUser_IdOrderByCreatedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
+
+
+
    @Query(value = "select " + "round(avg(cast(rating as decimal)),1) as averageRating, " +
 		  "count(*) as ratingCount " + "from movie_ratings " +
 		  "where movie_id = :movieId", nativeQuery = true)

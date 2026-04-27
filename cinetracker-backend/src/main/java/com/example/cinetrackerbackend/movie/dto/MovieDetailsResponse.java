@@ -20,6 +20,10 @@ public record MovieDetailsResponse(
   String genre,
   List<String> genreNames,
   Double averageRating,
-  Long ratingCount
+  Long ratingCount,
+  List<CastMemberResponse> cast,
+  List<TrailerResponse> trailers,
+  String director
 ) {
 }
+

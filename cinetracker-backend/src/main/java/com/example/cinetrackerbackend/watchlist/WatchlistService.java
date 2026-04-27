@@ -28,6 +28,8 @@ public class WatchlistService{
   private final TmdbClient tmdbClient;
   private final RatingService ratingService;
   private final com.example.cinetrackerbackend.movie.MovieService movieService;
+  private final com.example.cinetrackerbackend.gamification.GamificationService gamificationService;
+
 
   public WatchlistResponse addToWatchlist(Long userId,Long movieId){
     
@@ -113,18 +115,30 @@ public class WatchlistService{
         rating,
         releaseDate,
         releaseYear,
-        genre
+        genre,
+        WatchlistStatus.PENDING
     );
 
     Watchlist saved = watchlistRepo.save(watchlist);
+    
+    // Award XP
+    gamificationService.awardXpWithLimit(userId, com.example.cinetrackerbackend.gamification.GamificationService.XP_ADD_WATCHLIST, "ADD_WATCHLIST", "Added movie to watchlist: " + title);
+
+
     return toResponse(saved);
   }
 
-  public PaginatedResponse<WatchlistResponse> getUserWatchlist(Long userId, int page, int size) {
+
+  public PaginatedResponse<WatchlistResponse> getUserWatchlist(Long userId, int page, int size, WatchlistStatus status) {
     int safePage = Math.max(page, 1);
     int safeSize = Math.min(Math.max(size, 1), 50);
 
-    Page<Watchlist> pageData = watchlistRepo.findByUser_Id(userId, PageRequest.of(safePage - 1, safeSize));
+    Page<Watchlist> pageData;
+    if (status != null) {
+      pageData = watchlistRepo.findByUser_IdAndStatus(userId, status, PageRequest.of(safePage - 1, safeSize));
+    } else {
+      pageData = watchlistRepo.findByUser_Id(userId, PageRequest.of(safePage - 1, safeSize));
+    }
     List<Watchlist> items = pageData.getContent();
     
     if (items.isEmpty()) {
@@ -153,6 +167,26 @@ public class WatchlistService{
     watchlistRepo.deleteByUser_IdAndMovieId(userId, movieId);
   }
 
+  @Transactional
+  public WatchlistResponse updateWatchlistStatus(Long userId, Long movieId, WatchlistStatus newStatus) {
+    Watchlist watchlist = watchlistRepo.findByUser_IdAndMovieId(userId, movieId)
+        .orElseThrow(() -> new ApiException("Movie not in watchlist", HttpStatus.NOT_FOUND));
+
+    WatchlistStatus oldStatus = watchlist.getStatus();
+    watchlist.setStatus(newStatus);
+    Watchlist saved = watchlistRepo.save(watchlist);
+    
+    // Award XP if completed
+    if (newStatus == WatchlistStatus.COMPLETED && oldStatus != WatchlistStatus.COMPLETED) {
+        gamificationService.awardXpWithLimit(userId, com.example.cinetrackerbackend.gamification.GamificationService.XP_COMPLETE_MOVIE, "COMPLETE", "Completed movie: " + watchlist.getTitle());
+    }
+
+    
+    return toResponse(saved);
+
+  }
+
+
   private WatchlistResponse toResponse(Watchlist watchlist, RatingSummaryDTO ratings) {
     return new WatchlistResponse(
       watchlist.getId(),
@@ -164,7 +198,8 @@ public class WatchlistService{
       watchlist.getRating(),
       watchlist.getReleaseDate(),
       watchlist.getReleaseYear(),
-      watchlist.getGenre()
+      watchlist.getGenre(),
+      watchlist.getStatus().name()
     );
   }
 

@@ -21,9 +21,10 @@ public class RatingController {
             @PathVariable Long movieId,
             @Valid @RequestBody RatingRequest request) {
         Long userId = getAuthenticatedUserId();
-        MovieRating rating = ratingService.setRating(movieId, userId, request.getRating());
+        MovieRating rating = ratingService.setRating(movieId, userId, request.getRating(), request.getComment());
         return ResponseEntity.ok(ApiResponse.success("Rating saved", 200, rating));
     }
+
 
     @DeleteMapping("/{movieId}/rating")
     public ResponseEntity<ApiResponse<Void>> deleteRating(@PathVariable Long movieId) {
@@ -46,6 +47,24 @@ public class RatingController {
         }
         return ResponseEntity.ok(ApiResponse.success("Rating summary fetched", 200, summary));
     }
+
+
+    @GetMapping("/{movieId}/reviews")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<MovieRating>>> getMovieReviews(
+            @PathVariable Long movieId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        org.springframework.data.domain.Page<MovieRating> reviews = ratingService.getMovieReviews(movieId, page, size);
+        return ResponseEntity.ok(ApiResponse.success("Movie reviews fetched", 200, reviews));
+    }
+
+    @PostMapping("/review/{ratingId}/helpful")
+    public ResponseEntity<ApiResponse<Void>> markReviewAsHelpful(@PathVariable Long ratingId) {
+        ratingService.markAsHelpful(ratingId);
+        return ResponseEntity.ok(ApiResponse.success("Review marked as helpful", 200, null));
+    }
+
+
 
     private Long getAuthenticatedUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

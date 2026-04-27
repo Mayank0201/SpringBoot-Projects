@@ -19,6 +19,8 @@ import com.example.cinetrackerbackend.movie.dto.MovieSearchResponse;
 import com.example.cinetrackerbackend.movie.dto.PaginatedResponse;
 import com.example.cinetrackerbackend.movie.dto.HomeScreenMovieResponse;
 import com.example.cinetrackerbackend.movie.dto.MovieDetailsResponse;
+import com.example.cinetrackerbackend.movie.dto.CastMemberResponse;
+import com.example.cinetrackerbackend.movie.dto.TrailerResponse;
 
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -251,6 +253,72 @@ public class MovieService{
       String genre = genreNames.isEmpty() ? "N/A" : String.join(", ", genreNames);
       RatingSummaryDTO summary = ratingService.getRatingSummary(tmdbId);
 
+      // Fetch credits (cast & crew)
+      List<CastMemberResponse> castList = Collections.emptyList();
+      String director = "Unknown";
+      try {
+        Map<String, Object> credits = tmdbClient.getMovieCredits(movieId);
+        if (credits != null) {
+          // 1. Extract Cast
+          List<Map<String, Object>> cast = (List<Map<String, Object>>) credits.getOrDefault("cast", Collections.emptyList());
+          castList = cast.stream()
+            .limit(6)
+
+            .map(c -> {
+              String profilePath = (String) c.get("profile_path");
+              String profileUrl = profilePath != null && !profilePath.isBlank()
+                ? IMAGE_BASE_URL + profilePath
+                : null;
+              return new CastMemberResponse(
+                ((Number) c.get("id")).longValue(),
+                (String) c.getOrDefault("name", "Unknown"),
+                (String) c.getOrDefault("character", ""),
+                profileUrl,
+                c.get("order") != null ? ((Number) c.get("order")).intValue() : 999
+              );
+            })
+            .collect(Collectors.toList());
+
+          // 2. Extract Director
+          List<Map<String, Object>> crew = (List<Map<String, Object>>) credits.getOrDefault("crew", Collections.emptyList());
+          director = crew.stream()
+            .filter(member -> "Director".equalsIgnoreCase((String) member.get("job")))
+            .map(member -> (String) member.get("name"))
+            .findFirst()
+            .orElse("Unknown");
+        }
+      } catch (Exception e) {
+        // Failed to fetch credits — return defaults
+      }
+
+
+      // Fetch trailers (YouTube only, prioritize official trailers)
+      List<TrailerResponse> trailerList = Collections.emptyList();
+      try {
+        Map<String, Object> videos = tmdbClient.getMovieVideos(movieId);
+        if (videos != null) {
+          List<Map<String, Object>> results = (List<Map<String, Object>>) videos.getOrDefault("results", Collections.emptyList());
+          trailerList = results.stream()
+            .filter(v -> "YouTube".equalsIgnoreCase((String) v.get("site")))
+            .filter(v -> {
+              String type = (String) v.get("type");
+              return "Trailer".equalsIgnoreCase(type) || "Teaser".equalsIgnoreCase(type);
+            })
+            .limit(5)
+            .map(v -> new TrailerResponse(
+              (String) v.get("id"),
+              (String) v.getOrDefault("name", "Trailer"),
+              (String) v.get("key"),
+              (String) v.get("site"),
+              (String) v.get("type"),
+              Boolean.TRUE.equals(v.get("official"))
+            ))
+            .collect(Collectors.toList());
+        }
+      } catch (Exception e) {
+        // Failed to fetch videos — return empty list, don't fail the whole response
+      }
+
       return new MovieDetailsResponse(
         tmdbId,
         tmdbId,
@@ -268,8 +336,12 @@ public class MovieService{
         genre,
         genreNames,
         summary.getAverageRating(),
-        summary.getRatingCount()
+        summary.getRatingCount(),
+        castList,
+        trailerList,
+        director
       );
+
     } catch (ApiException e) {
       throw e;
     } catch (Exception e) {

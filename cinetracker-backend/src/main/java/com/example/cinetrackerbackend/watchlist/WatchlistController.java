@@ -28,10 +28,38 @@ public class WatchlistController {
   @GetMapping("/get")
   public ResponseEntity<ApiResponse<PaginatedResponse<WatchlistResponse>>> getUserWatchlist(
       @RequestParam(value = "page", defaultValue = "1") int page,
-      @RequestParam(value = "size", defaultValue = "20") int size){
-    PaginatedResponse<WatchlistResponse> data = watchlistService.getUserWatchlist(getAuthenticatedUserId(), page, size);
+      @RequestParam(value = "size", defaultValue = "20") int size,
+      @RequestParam(value = "status", required = false) String status){
+
+
+    WatchlistStatus statusEnum = null;
+    if (status != null && !status.isBlank()) {
+      try {
+        statusEnum = WatchlistStatus.valueOf(status.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        return ResponseEntity.badRequest()
+          .body(ApiResponse.success("Invalid status. Use PENDING, ACTIVE, or COMPLETED", HttpStatus.BAD_REQUEST.value(), null));
+      }
+    }
+    PaginatedResponse<WatchlistResponse> data = watchlistService.getUserWatchlist(getAuthenticatedUserId(), page, size, statusEnum);
     return ResponseEntity.ok(ApiResponse.success("Watchlist fetched", HttpStatus.OK.value(), data));
   }
+
+  @PatchMapping("/{movieId}/status")
+  public ResponseEntity<ApiResponse<WatchlistResponse>> updateStatus(
+      @PathVariable Long movieId,
+      @Valid @RequestBody WatchlistStatusUpdateRequest request) {
+    WatchlistStatus newStatus;
+    try {
+      newStatus = WatchlistStatus.valueOf(request.getStatus().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest()
+        .body(ApiResponse.success("Invalid status. Use PENDING, ACTIVE, or COMPLETED", HttpStatus.BAD_REQUEST.value(), null));
+    }
+    WatchlistResponse updated = watchlistService.updateWatchlistStatus(getAuthenticatedUserId(), movieId, newStatus);
+    return ResponseEntity.ok(ApiResponse.success("Status updated", HttpStatus.OK.value(), updated));
+  }
+
 
   @DeleteMapping("/remove")
   public ResponseEntity<ApiResponse<Void>> removeFromWatchlist(@Valid @RequestBody WatchlistMovieRequest request){

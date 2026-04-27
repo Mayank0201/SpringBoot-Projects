@@ -37,6 +37,10 @@ public class AuthService{
 
   public User register(String username, String email, String password){
 
+    if (com.example.cinetrackerbackend.common.ContentModerator.containsAnyProfanity(username)) {
+      throw new ApiException("Username contains restricted language.", HttpStatus.BAD_REQUEST);
+    }
+
     if (userRepository.existsByUsername(username)){
       throw new ApiException("Username already exists", HttpStatus.CONFLICT);
     }
