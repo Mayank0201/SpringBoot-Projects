@@ -50,18 +50,27 @@ public class RatingController {
 
 
     @GetMapping("/{movieId}/reviews")
-    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<MovieRating>>> getMovieReviews(
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ReviewDTO>>> getMovieReviews(
             @PathVariable Long movieId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        org.springframework.data.domain.Page<MovieRating> reviews = ratingService.getMovieReviews(movieId, page, size);
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "newest") String sortBy,
+            Authentication authentication) {
+        
+        Long userId = null;
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            userId = user.getId();
+        }
+        
+        org.springframework.data.domain.Page<ReviewDTO> reviews = ratingService.getMovieReviews(movieId, userId, page, size, sortBy);
         return ResponseEntity.ok(ApiResponse.success("Movie reviews fetched", 200, reviews));
     }
 
     @PostMapping("/review/{ratingId}/helpful")
-    public ResponseEntity<ApiResponse<Void>> markReviewAsHelpful(@PathVariable Long ratingId) {
-        ratingService.markAsHelpful(ratingId);
-        return ResponseEntity.ok(ApiResponse.success("Review marked as helpful", 200, null));
+    public ResponseEntity<ApiResponse<Void>> toggleReviewHelpful(@PathVariable Long ratingId) {
+        Long userId = getAuthenticatedUserId();
+        ratingService.toggleHelpful(ratingId, userId);
+        return ResponseEntity.ok(ApiResponse.success("Review helpful status toggled", 200, null));
     }
 
 

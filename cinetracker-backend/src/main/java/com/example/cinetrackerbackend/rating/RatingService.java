@@ -18,6 +18,7 @@ public class RatingService {
     private final com.example.cinetrackerbackend.movie.MovieRepository movieRepository;
     private final com.example.cinetrackerbackend.movie.TmdbClient tmdbClient;
     private final com.example.cinetrackerbackend.gamification.GamificationService gamificationService;
+    private final MovieRatingHelpfulRepository helpfulRepository;
 
 
     @Transactional
@@ -28,7 +29,7 @@ public class RatingService {
         }
 
         if (com.example.cinetrackerbackend.common.ContentModerator.containsSlur(comment)) {
-            throw new ApiException("Review contains offensive language. Please keep it respectful.", HttpStatus.BAD_REQUEST);
+            throw new ApiException("Contains offensive slurs. Please refrain from using them and be respectful.", HttpStatus.BAD_REQUEST);
         }
 
         if ((rating * 2) % 1 != 0) {
@@ -48,6 +49,10 @@ public class RatingService {
                 movieRating = existingRating.get();
                 movieRating.setRating(rating);
                 movieRating.setComment(comment);
+                // Reset helpful count when review is edited
+                movieRating.setHelpfulCount(0L);
+                // Delete existing helpful records for this rating
+                helpfulRepository.deleteByRatingId(movieRating.getId());
             } else {
                 com.example.cinetrackerbackend.user.User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
@@ -154,8 +159,21 @@ public class RatingService {
         }
     }
 
-    public org.springframework.data.domain.Page<MovieRating> getMovieReviews(Long movieId, int page, int size) {
-        return ratingRepository.findByMovieIdOrderByCreatedAtDesc(movieId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+    public org.springframework.data.domain.Page<ReviewDTO> getMovieReviews(Long movieId, Long currentUserId, int page, int size, String sortBy) {
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by("createdAt").descending();
+        if ("helpful".equalsIgnoreCase(sortBy)) {
+            sort = org.springframework.data.domain.Sort.by("helpfulCount").descending().and(org.springframework.data.domain.Sort.by("createdAt").descending());
+        }
+        
+        org.springframework.data.domain.Page<MovieRating> ratings = ratingRepository.findReviewsWithComments(movieId, org.springframework.data.domain.PageRequest.of(page - 1, size, sort));
+        
+        return ratings.map(rating -> {
+            boolean isHelpful = false;
+            if (currentUserId != null) {
+                isHelpful = helpfulRepository.existsByRatingIdAndUserId(rating.getId(), currentUserId);
+            }
+            return new ReviewDTO(rating, isHelpful);
+        });
     }
 
     public org.springframework.data.domain.Page<MovieRating> getUserReviews(Long userId, int page, int size) {
@@ -166,11 +184,26 @@ public class RatingService {
     }
 
     @Transactional
-    public void markAsHelpful(Long ratingId) {
-        ratingRepository.findById(ratingId).ifPresent(rating -> {
+    public void toggleHelpful(Long ratingId, Long userId) {
+        MovieRating rating = ratingRepository.findById(ratingId)
+            .orElseThrow(() -> new ApiException("Rating not found", HttpStatus.NOT_FOUND));
+
+        Optional<MovieRatingHelpful> existing = helpfulRepository.findByRatingIdAndUserId(ratingId, userId);
+
+        if (existing.isPresent()) {
+            helpfulRepository.delete(existing.get());
+            rating.setHelpfulCount(Math.max(0, rating.getHelpfulCount() - 1));
+        } else {
+            helpfulRepository.save(new MovieRatingHelpful(ratingId, userId));
             rating.setHelpfulCount(rating.getHelpfulCount() + 1);
-            ratingRepository.save(rating);
-        });
+            
+            // Award 1 XP to the review owner when someone marks it helpful
+            // Don't award XP to self
+            if (rating.getUser().getId() != userId) {
+                gamificationService.awardXpWithLimit(rating.getUser().getId(), 1, "HELPFUL_REVIEW", "Review marked as helpful on movie: " + rating.getMovieId());
+            }
+        }
+        ratingRepository.save(rating);
     }
 
     private void ensureMovieExists(Long movieId) {

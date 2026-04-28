@@ -6,7 +6,7 @@ import java.util.List;
 public class ContentModerator {
     // Severe slurs that are never allowed
     private static final List<String> SLURS = Arrays.asList(
-        "nigger", "faggot", "kike", "retard", "cunt"
+        "nigger", "faggot", "kike", "retard", "cunt", "nigga"
     );
 
     // General profanity blocked in usernames
