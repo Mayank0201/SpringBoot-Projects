@@ -37,7 +37,7 @@ public class EmailService {
             String encodedToken = URLEncoder.encode(verificationToken, StandardCharsets.UTF_8);
             String normalizedBaseUrl = backendBaseUrl == null ? "http://localhost:8080" : backendBaseUrl.replaceAll("/+$", "");
             String verificationLink = normalizedBaseUrl + "/auth/verify-email?token=" + encodedToken;
-            String subject = "Verify Your Email - CineTracker";
+            String subject = "Verify Your Email - CineFolio";
             String body = buildVerificationEmailBody(username, verificationLink);
 
             SimpleMailMessage message = new SimpleMailMessage();
@@ -60,11 +60,11 @@ public class EmailService {
 
     private String buildVerificationEmailBody(String username, String verificationLink) {
         return "Hello " + username + ",\n\n" +
-                "Welcome to CineTracker! Please verify your email address by clicking the link below:\n\n" +
+                "Welcome to CineFolio! Please verify your email address by clicking the link below:\n\n" +
                 verificationLink + "\n\n" +
                 "This link will expire in 24 hours.\n\n" +
                 "If you did not create this account, you can safely ignore this email.\n\n" +
                 "Best regards,\n" +
-                "CineTracker Team";
+                "CineFolio Team";
     }
 }

@@ -43,7 +43,8 @@ public class SecurityConfig{
         "/swagger-ui.html",
         "/actuator/health",
         "/actuator/health/**",
-        "/actuator/info")
+        "/actuator/info",
+        "/privacy.html")
     .permitAll().anyRequest().authenticated()
     )
     .addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)
