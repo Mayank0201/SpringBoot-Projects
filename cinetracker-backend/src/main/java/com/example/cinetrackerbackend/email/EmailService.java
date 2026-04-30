@@ -1,24 +1,31 @@
 package com.example.cinetrackerbackend.email;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender javaMailSender;
+    private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${spring.mail.username:}")
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+
+    @Value("${brevo.api.key:}")
+    private String brevoApiKey;
+
+    @Value("${email.from-address:noreply@cinefolio.app}")
     private String fromEmail;
+
+    @Value("${email.from-name:CineFolio}")
+    private String fromName;
 
     @Value("${app.backend.base-url:http://localhost:8080}")
     private String backendBaseUrl;
@@ -26,10 +33,10 @@ public class EmailService {
     public void sendVerificationEmail(String userEmail, String username, String verificationToken) {
         // Log token for dev testing
         log.info("Generated verification token for {}: {}", userEmail, verificationToken);
-        
-        // Skip email sending if mail credentials are not configured
-        if (fromEmail == null || fromEmail.isBlank()) {
-            log.warn("Mail credentials not configured. Skipping email to: {} (Token: {})", userEmail, verificationToken.substring(0, Math.min(10, verificationToken.length())));
+
+        // Skip email sending if Brevo API key is not configured
+        if (brevoApiKey == null || brevoApiKey.isBlank()) {
+            log.warn("Brevo API key not configured. Skipping email to: {} (Token: {})", userEmail, verificationToken.substring(0, Math.min(10, verificationToken.length())));
             return;
         }
 
@@ -40,13 +47,7 @@ public class EmailService {
             String subject = "Verify Your Email - CineFolio";
             String body = buildVerificationEmailBody(username, verificationLink);
 
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(userEmail);
-            message.setSubject(subject);
-            message.setText(body);
-
-            javaMailSender.send(message);
+            sendEmailViaBrevo(userEmail, subject, body);
             log.info("Verification email sent to: {}", userEmail);
         } catch (Exception e) {
             log.error("Failed to send verification email to {}", userEmail, e);
@@ -56,6 +57,40 @@ public class EmailService {
 
     public void sendResendVerificationEmail(String userEmail, String username, String verificationToken) {
         sendVerificationEmail(userEmail, username, verificationToken);
+    }
+
+    private void sendEmailViaBrevo(String toEmail, String subject, String textContent) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);
+
+        Map<String, Object> sender = new HashMap<>();
+        sender.put("name", fromName);
+        sender.put("email", fromEmail);
+
+        Map<String, String> toRecipient = new HashMap<>();
+        toRecipient.put("email", toEmail);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("sender", sender);
+        requestBody.put("to", List.of(toRecipient));
+        requestBody.put("subject", subject);
+        requestBody.put("textContent", textContent);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                BREVO_API_URL,
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Brevo API returned status: " + response.getStatusCode() + " body: " + response.getBody());
+        }
+
+        log.debug("Brevo API response: {}", response.getBody());
     }
 
     private String buildVerificationEmailBody(String username, String verificationLink) {
