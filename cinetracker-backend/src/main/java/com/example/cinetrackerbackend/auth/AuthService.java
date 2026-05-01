@@ -36,6 +36,7 @@ public class AuthService{
   private final StringRedisTemplate stringRedisTemplate;
 
   public User register(String username, String email, String password){
+    log.info("Starting registration process for username: {}. Note: User data will NOT be persisted to Supabase until email verification is complete.", username);
 
     if (com.example.cinetrackerbackend.common.ContentModerator.containsAnyProfanity(username)) {
       throw new ApiException("Restricted language detected. Please refrain from using offensive words.", HttpStatus.BAD_REQUEST);
@@ -75,9 +76,11 @@ public class AuthService{
     });
 
     // We do NOT save the user to the database yet. 
-    // They will be saved only upon successful email verification.
+    // They will be saved only upon successful email verification in verifyEmail().
     User transientUser = new User(username, email, encodedPassword);
     transientUser.setIsEmailVerified(false);
+    
+    log.info("Registration request processed for {}. Verification email sent. User remains transient.", username);
     return transientUser;
   }
 
@@ -163,33 +166,28 @@ public class AuthService{
       }
     }
 
-    Claims claims;
-    try {
-      claims = jwtService.extractEmailVerificationClaims(normalizedToken);
-    } catch (Exception e) {
-      throw new ApiException("Invalid or expired verification token", HttpStatus.UNAUTHORIZED);
-    }
-
+    // Extract details from token
+    Claims claims = jwtService.extractEmailVerificationClaims(normalizedToken);
     String username = claims.getSubject();
     String email = claims.get("email", String.class);
     String encodedPassword = claims.get("password", String.class);
 
-    // Check again to avoid race conditions
+    // Final check to ensure username/email hasn't been taken by someone else who verified faster
     if (userRepository.existsByUsername(username)) {
-      throw new ApiException("Username is already taken by a verified account.", HttpStatus.CONFLICT);
+      throw new ApiException("This username has already been taken and verified.", HttpStatus.CONFLICT);
     }
     if (userRepository.existsByEmail(email)) {
-      throw new ApiException("Email is already taken by a verified account.", HttpStatus.CONFLICT);
+      throw new ApiException("This email has already been verified for another account.", HttpStatus.CONFLICT);
     }
 
-    // Now save to database
+    // Create and save the user ONLY now
     User user = new User(username, email, encodedPassword);
     user.setIsEmailVerified(true);
     
-    User updatedUser = userRepository.save(user);
+    User savedUser = userRepository.save(user);
+    log.info("Email verification successful. User '{}' has been persisted to the database.", username);
 
-    log.info("Email verified and user saved to database: {}", user.getUsername());
-    return VerifyEmailResponse.of(updatedUser.getId(), updatedUser.getUsername(), updatedUser.getEmail());
+    return VerifyEmailResponse.of(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
   }
 
   public void resendVerificationEmail(String email) {
