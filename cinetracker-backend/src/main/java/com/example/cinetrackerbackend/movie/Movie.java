@@ -23,6 +23,8 @@ public class Movie{
   private String genre;
 
   private int releaseYear;
+
+  private String posterPath;
   
   @jakarta.persistence.Column(name = "created_at", nullable = false, updatable = false)
   private java.time.LocalDateTime createdAt;

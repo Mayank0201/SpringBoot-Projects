@@ -180,7 +180,7 @@ public class AuthService{
       throw new ApiException("This email has already been verified for another account.", HttpStatus.CONFLICT);
     }
 
-    // Create and save the user ONLY now
+    // Create and save the user only now
     User user = new User(username, email, encodedPassword);
     user.setIsEmailVerified(true);
     

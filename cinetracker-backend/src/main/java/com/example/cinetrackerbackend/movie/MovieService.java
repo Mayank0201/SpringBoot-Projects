@@ -375,11 +375,14 @@ public class MovieService{
           .filter(Objects::nonNull)
           .collect(Collectors.joining(", "));
 
+      String posterPath = (String) movieData.get("poster_path");
+
       Movie movie = new Movie();
       movie.setId(movieId);
       movie.setTitle(title);
       movie.setGenre(genre.isBlank() ? "N/A" : genre);
       movie.setReleaseYear(releaseYear != null ? releaseYear : 0);
+      movie.setPosterPath(posterPath);
 
       movieRepository.save(movie);
     } catch (Exception e) {

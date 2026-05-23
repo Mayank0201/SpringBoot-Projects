@@ -3,6 +3,7 @@ package com.example.cinetrackerbackend.social;
 import com.example.cinetrackerbackend.common.ApiResponse;
 import com.example.cinetrackerbackend.rating.MovieRating;
 import com.example.cinetrackerbackend.rating.RatingService;
+import com.example.cinetrackerbackend.rating.UserReviewDTO;
 import com.example.cinetrackerbackend.user.User;
 import com.example.cinetrackerbackend.user.UserRepository;
 import com.example.cinetrackerbackend.exception.ApiException;
@@ -52,7 +53,17 @@ public class SocialController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
 
-        org.springframework.data.domain.Page<MovieRating> reviews = ratingService.getUserReviews(userId, page, size);
+        Long currentUserId = null;
+        boolean isFollowing = false;
+
+        try {
+            currentUserId = getAuthenticatedUserId();
+            isFollowing = followService.isFollowing(currentUserId, userId);
+        } catch (Exception e) {
+            // Unauthenticated user
+        }
+
+        org.springframework.data.domain.Page<UserReviewDTO> reviews = ratingService.getUserReviews(userId, currentUserId, page, size);
         long followers = followService.getFollowerCount(userId);
         long following = followService.getFollowingCount(userId);
 
@@ -60,15 +71,6 @@ public class SocialController {
 
 
                 .stream().map(UserBadge::getBadge).toList();
-        
-        boolean isFollowing = false;
-
-        try {
-            Long currentUserId = getAuthenticatedUserId();
-            isFollowing = followService.isFollowing(currentUserId, userId);
-        } catch (Exception e) {
-            // Unauthenticated user
-        }
 
         Map<String, Object> profile = new HashMap<>();
         profile.put("id", user.getId());

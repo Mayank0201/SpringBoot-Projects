@@ -176,11 +176,77 @@ public class RatingService {
         });
     }
 
-    public org.springframework.data.domain.Page<MovieRating> getUserReviews(Long userId, int page, int size) {
-        if (!userRepository.existsById(userId)) {
+    public org.springframework.data.domain.Page<UserReviewDTO> getUserReviews(Long targetUserId, Long currentUserId, int page, int size) {
+        if (!userRepository.existsById(targetUserId)) {
             throw new ApiException("User not found", HttpStatus.NOT_FOUND);
         }
-        return ratingRepository.findByUser_IdOrderByCreatedAtDesc(userId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+        
+        org.springframework.data.domain.Page<MovieRating> ratings = ratingRepository.findByUser_IdOrderByCreatedAtDesc(targetUserId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+        
+        java.util.List<Long> movieIds = ratings.getContent().stream()
+            .map(MovieRating::getMovieId)
+            .distinct()
+            .collect(java.util.stream.Collectors.toList());
+            
+        java.util.Map<Long, com.example.cinetrackerbackend.movie.Movie> movieMap = new java.util.HashMap<>();
+        if (!movieIds.isEmpty()) {
+            java.util.List<com.example.cinetrackerbackend.movie.Movie> movies = movieRepository.findAllById(movieIds);
+            for (com.example.cinetrackerbackend.movie.Movie m : movies) {
+                movieMap.put(m.getId(), m);
+            }
+        }
+        
+        return ratings.map(rating -> {
+            com.example.cinetrackerbackend.movie.Movie movie = movieMap.get(rating.getMovieId());
+            String movieTitle = "Unknown";
+            String moviePosterUrl = null;
+            Integer movieReleaseYear = null;
+            String movieGenre = null;
+            
+            if (movie != null) {
+                movieTitle = movie.getTitle();
+                if (movie.getPosterPath() != null) {
+                    moviePosterUrl = "https://image.tmdb.org/t/p/w500" + movie.getPosterPath();
+                }
+                movieReleaseYear = movie.getReleaseYear();
+                movieGenre = movie.getGenre();
+            } else {
+                try {
+                    ensureMovieExists(rating.getMovieId());
+                    com.example.cinetrackerbackend.movie.Movie fallbackMovie = movieRepository.findById(rating.getMovieId()).orElse(null);
+                    if (fallbackMovie != null) {
+                        movieTitle = fallbackMovie.getTitle();
+                        if (fallbackMovie.getPosterPath() != null) {
+                            moviePosterUrl = "https://image.tmdb.org/t/p/w500" + fallbackMovie.getPosterPath();
+                        }
+                        movieReleaseYear = fallbackMovie.getReleaseYear();
+                        movieGenre = fallbackMovie.getGenre();
+                    }
+                } catch (Exception ignored) {}
+            }
+            
+            boolean isHelpful = false;
+            if (currentUserId != null) {
+                isHelpful = helpfulRepository.existsByRatingIdAndUserId(rating.getId(), currentUserId);
+            }
+            
+            return new UserReviewDTO(
+                rating.getId(),
+                rating.getMovieId(),
+                movieTitle,
+                moviePosterUrl,
+                movieReleaseYear,
+                movieGenre,
+                rating.getUserId(),
+                rating.getUsername(),
+                rating.getRating(),
+                rating.getComment(),
+                rating.getHelpfulCount(),
+                isHelpful,
+                rating.getCreatedAt(),
+                rating.getUpdatedAt()
+            );
+        });
     }
 
     @Transactional
@@ -238,11 +304,14 @@ public class RatingService {
                 .filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.joining(", "));
 
+            String posterPath = (String) movieData.get("poster_path");
+
             com.example.cinetrackerbackend.movie.Movie movie = new com.example.cinetrackerbackend.movie.Movie();
             movie.setId(movieId);
             movie.setTitle(title);
             movie.setGenre(genre.isBlank() ? "N/A" : genre);
             movie.setReleaseYear(releaseYear != null ? releaseYear : 0);
+            movie.setPosterPath(posterPath);
 
             movieRepository.save(movie);
         } catch (Exception e) {

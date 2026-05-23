@@ -66,6 +66,15 @@ public class RatingController {
         return ResponseEntity.ok(ApiResponse.success("Movie reviews fetched", 200, reviews));
     }
 
+    @GetMapping("/my-reviews")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<UserReviewDTO>>> getMyReviews(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Long userId = getAuthenticatedUserId();
+        org.springframework.data.domain.Page<UserReviewDTO> reviews = ratingService.getUserReviews(userId, userId, page, size);
+        return ResponseEntity.ok(ApiResponse.success("My reviews fetched", 200, reviews));
+    }
+
     @PostMapping("/review/{ratingId}/helpful")
     public ResponseEntity<ApiResponse<Void>> toggleReviewHelpful(@PathVariable Long ratingId) {
         Long userId = getAuthenticatedUserId();
