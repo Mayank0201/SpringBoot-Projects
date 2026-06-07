@@ -351,7 +351,21 @@ public class MovieService{
 
   @Transactional
   public void ensureMovieExists(Long movieId) {
-    if (movieRepository.existsById(movieId)) {
+    java.util.Optional<Movie> existingOpt = movieRepository.findById(movieId);
+    if (existingOpt.isPresent()) {
+      Movie existing = existingOpt.get();
+      if (existing.getPosterPath() == null || existing.getPosterPath().isBlank()) {
+        try {
+          Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+          if (movieData != null && !movieData.isEmpty()) {
+            String posterPath = (String) movieData.get("poster_path");
+            if (posterPath != null && !posterPath.isBlank()) {
+              existing.setPosterPath(posterPath);
+              movieRepository.save(existing);
+            }
+          }
+        } catch (Exception ignored) {}
+      }
       return;
     }
 

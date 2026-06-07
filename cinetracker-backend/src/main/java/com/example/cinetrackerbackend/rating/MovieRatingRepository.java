@@ -17,7 +17,10 @@ public interface MovieRatingRepository extends JpaRepository<MovieRating, Long>{
    @Query("SELECT r FROM MovieRating r WHERE r.movieId = :movieId AND r.comment IS NOT NULL AND r.comment <> ''")
    org.springframework.data.domain.Page<MovieRating> findReviewsWithComments(@Param("movieId") Long movieId, org.springframework.data.domain.Pageable pageable);
 
-   org.springframework.data.domain.Page<MovieRating> findByUser_IdOrderByCreatedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<MovieRating> findByUser_IdOrderByCreatedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT r FROM MovieRating r WHERE r.user.id = :userId AND r.comment IS NOT NULL AND r.comment <> '' ORDER BY r.createdAt DESC")
+    org.springframework.data.domain.Page<MovieRating> findReviewsWithCommentsByUserId(@Param("userId") Long userId, org.springframework.data.domain.Pageable pageable);
 
 
 

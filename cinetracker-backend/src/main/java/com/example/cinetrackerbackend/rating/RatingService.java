@@ -181,7 +181,7 @@ public class RatingService {
             throw new ApiException("User not found", HttpStatus.NOT_FOUND);
         }
         
-        org.springframework.data.domain.Page<MovieRating> ratings = ratingRepository.findByUser_IdOrderByCreatedAtDesc(targetUserId, org.springframework.data.domain.PageRequest.of(page - 1, size));
+        org.springframework.data.domain.Page<MovieRating> ratings = ratingRepository.findReviewsWithCommentsByUserId(targetUserId, org.springframework.data.domain.PageRequest.of(page - 1, size));
         
         java.util.List<Long> movieIds = ratings.getContent().stream()
             .map(MovieRating::getMovieId)
@@ -275,7 +275,21 @@ public class RatingService {
     private void ensureMovieExists(Long movieId) {
 
 
-        if (movieRepository.existsById(movieId)) {
+        Optional<com.example.cinetrackerbackend.movie.Movie> existingOpt = movieRepository.findById(movieId);
+        if (existingOpt.isPresent()) {
+            com.example.cinetrackerbackend.movie.Movie existing = existingOpt.get();
+            if (existing.getPosterPath() == null || existing.getPosterPath().isBlank()) {
+                try {
+                    java.util.Map<String, Object> movieData = tmdbClient.getMovieDetails(movieId);
+                    if (movieData != null && !movieData.isEmpty()) {
+                        String posterPath = (String) movieData.get("poster_path");
+                        if (posterPath != null && !posterPath.isBlank()) {
+                            existing.setPosterPath(posterPath);
+                            movieRepository.save(existing);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
             return;
         }
 
