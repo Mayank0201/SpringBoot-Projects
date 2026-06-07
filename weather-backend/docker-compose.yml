@@ -16,6 +16,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     #we do this becuase docker container filesystem is temporary ,volumes helps with permanent storage
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: .
@@ -25,7 +30,8 @@ services:
       - "8080:8080"
       - "8081:8081"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     #tells docker to start db service before this service
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
