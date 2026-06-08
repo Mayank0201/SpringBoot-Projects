@@ -102,4 +102,36 @@ public class EmailService {
                 "Best regards,\n" +
                 "CineFolio Team";
     }
+
+    public void sendPasswordResetEmail(String userEmail, String username, String resetToken) {
+        log.info("Generated password reset token for {}: {}", userEmail, resetToken);
+
+        if (brevoApiKey == null || brevoApiKey.isBlank()) {
+            log.warn("Brevo API key not configured. Skipping password reset email to: {} (Token: {})", userEmail, resetToken);
+            return;
+        }
+
+        try {
+            String encodedToken = URLEncoder.encode(resetToken, StandardCharsets.UTF_8);
+            String normalizedBaseUrl = backendBaseUrl == null ? "http://localhost:8080" : backendBaseUrl.replaceAll("/+$", "");
+            String resetLink = normalizedBaseUrl + "/auth/reset-password.html?token=" + encodedToken;
+            String subject = "Reset Your Password - CineFolio";
+            String body = buildPasswordResetEmailBody(username, resetLink);
+
+            sendEmailViaBrevo(userEmail, subject, body);
+            log.info("Password reset email sent to: {}", userEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}", userEmail, e);
+        }
+    }
+
+    private String buildPasswordResetEmailBody(String username, String resetLink) {
+        return "Hello " + username + ",\n\n" +
+                "We received a request to reset your CineFolio password. Please click the link below to set a new password:\n\n" +
+                resetLink + "\n\n" +
+                "This link will expire in 15 minutes.\n\n" +
+                "If you did not request a password reset, please ignore this email.\n\n" +
+                "Best regards,\n" +
+                "CineFolio Team";
+    }
 }

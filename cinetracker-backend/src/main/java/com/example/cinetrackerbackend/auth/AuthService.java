@@ -23,6 +23,9 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -216,6 +219,135 @@ public class AuthService{
       return Base64.getEncoder().encodeToString(hashBytes);
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 algorithm is not available", e);
+    }
+  }
+
+  public void forgotPassword(String email) {
+    String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty()) {
+      throw new ApiException("Email is required", HttpStatus.BAD_REQUEST);
+    }
+
+    User user = userRepository.findByEmail(normalizedEmail)
+        .orElseThrow(() -> new ApiException("No account found with this email", HttpStatus.NOT_FOUND));
+
+    if (!user.getIsEmailVerified()) {
+      throw new ApiException("Email is not verified. Please verify your email first.", HttpStatus.FORBIDDEN);
+    }
+
+    String resetToken = UUID.randomUUID().toString().replace("-", "");
+    try {
+      stringRedisTemplate.opsForValue().set("password_reset:" + resetToken, user.getEmail(), Duration.ofMinutes(15));
+    } catch (Exception e) {
+      log.error("Failed to connect to Redis while storing reset token", e);
+      throw new ApiException("Service is currently unavailable. Please try again later.", HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    CompletableFuture.runAsync(() -> {
+      try {
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetToken);
+      } catch (Exception e) {
+        log.error("Failed to send password reset email for user: {}", user.getUsername(), e);
+      }
+    });
+  }
+
+  public void resetPassword(String token, String newPassword) {
+    String normalizedToken = token == null ? "" : token.trim();
+    if (normalizedToken.isEmpty()) {
+      throw new ApiException("Reset token is required", HttpStatus.BAD_REQUEST);
+    }
+
+    String email;
+    try {
+      email = stringRedisTemplate.opsForValue().get("password_reset:" + normalizedToken);
+    } catch (Exception e) {
+      log.error("Failed to connect to Redis while fetching reset token", e);
+      throw new ApiException("Service is currently unavailable. Please try again later.", HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    if (email == null) {
+      throw new ApiException("Invalid or expired reset token", HttpStatus.UNAUTHORIZED);
+    }
+
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+
+    user.setPassword(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
+
+    try {
+      stringRedisTemplate.delete("password_reset:" + normalizedToken);
+    } catch (Exception e) {
+      log.warn("Failed to delete used reset token from Redis", e);
+    }
+
+    log.info("Password successfully reset for user '{}'", user.getUsername());
+  }
+
+  public AuthTokenResponse googleLogin(String idToken) {
+    if (idToken == null || idToken.trim().isEmpty()) {
+      throw new ApiException("Google ID Token is required", HttpStatus.BAD_REQUEST);
+    }
+
+    String googleVerifyUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken.trim();
+    RestTemplate restTemplate = new RestTemplate();
+    try {
+      ResponseEntity<Map> response = restTemplate.getForEntity(googleVerifyUrl, Map.class);
+      if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+        Map<String, Object> body = response.getBody();
+        String email = (String) body.get("email");
+        if (email == null || email.trim().isEmpty()) {
+          throw new ApiException("Google token did not contain an email", HttpStatus.BAD_REQUEST);
+        }
+        email = email.trim().toLowerCase();
+
+        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        User user;
+        if (existingUserOpt.isPresent()) {
+          user = existingUserOpt.get();
+          if (!user.getIsEmailVerified()) {
+            user.setIsEmailVerified(true);
+            userRepository.save(user);
+          }
+        } else {
+          // Register a new user
+          String baseUsername = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "");
+          if (baseUsername.isEmpty()) {
+            baseUsername = "user";
+          }
+          String username = baseUsername;
+          int counter = 1;
+          while (userRepository.existsByUsername(username)) {
+            username = baseUsername + counter;
+            counter++;
+          }
+
+          String randomPassword = UUID.randomUUID().toString();
+          user = new User(username, email, passwordEncoder.encode(randomPassword));
+          user.setIsEmailVerified(true);
+          user = userRepository.save(user);
+        }
+
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        user.setRefreshTokenHash(hashToken(refreshToken));
+        user.setRefreshTokenExpiresAt(jwtService.extractExpiration(refreshToken).toInstant());
+        userRepository.save(user);
+
+        long expiresInSeconds = jwtService.extractExpiration(accessToken).toInstant().getEpochSecond()
+            - Instant.now().getEpochSecond();
+
+        return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0));
+      } else {
+        throw new ApiException("Invalid Google ID Token", HttpStatus.UNAUTHORIZED);
+      }
+    } catch (ApiException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error("Google authentication failed", e);
+      throw new ApiException("Google authentication failed. Please try again.", HttpStatus.UNAUTHORIZED);
     }
   }
 }

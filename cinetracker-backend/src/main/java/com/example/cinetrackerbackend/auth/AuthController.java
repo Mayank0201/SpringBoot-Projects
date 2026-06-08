@@ -68,4 +68,22 @@ public class AuthController{
         return ResponseEntity.ok(ApiResponse.success("Verification email resent successfully", HttpStatus.OK.value(), "Check your email for the verification link"));
     }
 
+    @PostMapping({"/forgot-password", "/forgot-password/"})
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success("If the email is registered, a password reset link has been sent.", HttpStatus.OK.value(), "Check your email for the link."));
+    }
+
+    @PostMapping({"/reset-password", "/reset-password/"})
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getPassword());
+        return ResponseEntity.ok(ApiResponse.success("Password has been reset successfully.", HttpStatus.OK.value(), "You can now log in with your new password."));
+    }
+
+    @PostMapping({"/google", "/google/"})
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        AuthTokenResponse response = authService.googleLogin(request.getIdToken());
+        return ResponseEntity.ok(ApiResponse.success("Google login successful", HttpStatus.OK.value(), response));
+    }
+
 }
