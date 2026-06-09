@@ -38,7 +38,9 @@ public class SecurityConfig{
     response.setContentType("application/json");
     response.getWriter().write("{\"success\":false,\"message\":\"Unauthorized\",\"status\":401,\"timestamp\":null,\"data\":null}");
     }))
-	  .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**","/swagger-ui/**",
+	  .authorizeHttpRequests(auth -> auth
+        .requestMatchers("/auth/update-username", "/auth/update-username/").authenticated()
+        .requestMatchers("/auth/**","/swagger-ui/**",
         "/v3/api-docs/**",
         "/swagger-ui.html",
         "/actuator/health",

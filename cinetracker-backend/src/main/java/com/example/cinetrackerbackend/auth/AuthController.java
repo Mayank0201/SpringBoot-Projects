@@ -86,4 +86,16 @@ public class AuthController{
         return ResponseEntity.ok(ApiResponse.success("Google login successful", HttpStatus.OK.value(), response));
     }
 
+    @PutMapping({"/update-username", "/update-username/"})
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> updateUsername(
+            @Valid @RequestBody UpdateUsernameRequest request) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof User)) {
+            throw new com.example.cinetrackerbackend.exception.ApiException("Authentication required", HttpStatus.UNAUTHORIZED);
+        }
+        User user = (User) auth.getPrincipal();
+        AuthTokenResponse response = authService.updateUsername(user.getId(), request.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Username updated successfully", HttpStatus.OK.value(), response));
+    }
+
 }

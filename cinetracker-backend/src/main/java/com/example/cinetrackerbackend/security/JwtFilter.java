@@ -28,8 +28,8 @@ public class JwtFilter extends OncePerRequestFilter{
     {
         String requestPath = request.getRequestURI();
         
-        // Skip JWT validation for auth endpoints (they use permitAll() in SecurityConfig)
-        if (requestPath.startsWith("/auth/") || requestPath.startsWith("/actuator/")) {
+        // Skip JWT validation for public auth endpoints (they use permitAll() in SecurityConfig)
+        if ((requestPath.startsWith("/auth/") && !requestPath.contains("update-username")) || requestPath.startsWith("/actuator/")) {
             filterChain.doFilter(request, response);
             return;
         }

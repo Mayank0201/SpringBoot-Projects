@@ -304,6 +304,7 @@ public class AuthService{
 
         Optional<User> existingUserOpt = userRepository.findByEmail(email);
         User user;
+        boolean isNewUser = false;
         if (existingUserOpt.isPresent()) {
           user = existingUserOpt.get();
           if (!user.getIsEmailVerified()) {
@@ -311,6 +312,7 @@ public class AuthService{
             userRepository.save(user);
           }
         } else {
+          isNewUser = true;
           // Register a new user
           String baseUsername = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "");
           if (baseUsername.isEmpty()) {
@@ -339,7 +341,7 @@ public class AuthService{
         long expiresInSeconds = jwtService.extractExpiration(accessToken).toInstant().getEpochSecond()
             - Instant.now().getEpochSecond();
 
-        return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0));
+        return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0), isNewUser);
       } else {
         throw new ApiException("Invalid Google ID Token", HttpStatus.UNAUTHORIZED);
       }
@@ -349,5 +351,47 @@ public class AuthService{
       log.error("Google authentication failed", e);
       throw new ApiException("Google authentication failed. Please try again.", HttpStatus.UNAUTHORIZED);
     }
+  }
+
+  public AuthTokenResponse updateUsername(Long userId, String newUsername) {
+    String normalizedUsername = newUsername == null ? "" : newUsername.trim().replaceAll("\\s+", "");
+    if (normalizedUsername.isEmpty() || normalizedUsername.length() < 3 || normalizedUsername.length() > 20) {
+      throw new ApiException("Username must be between 3 and 20 characters and contain no spaces", HttpStatus.BAD_REQUEST);
+    }
+    if (!normalizedUsername.matches("^[a-zA-Z0-9]+$")) {
+      throw new ApiException("Username must contain only letters and numbers", HttpStatus.BAD_REQUEST);
+    }
+
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+
+    if (user.getUsername().equalsIgnoreCase(normalizedUsername)) {
+      String accessToken = jwtService.generateAccessToken(user);
+      String refreshToken = jwtService.generateRefreshToken(user);
+      user.setRefreshTokenHash(hashToken(refreshToken));
+      userRepository.save(user);
+      long expiresInSeconds = jwtService.extractExpiration(accessToken).toInstant().getEpochSecond()
+          - Instant.now().getEpochSecond();
+      return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0));
+    }
+
+    if (userRepository.existsByUsername(normalizedUsername)) {
+      throw new ApiException("Username is already taken", HttpStatus.CONFLICT);
+    }
+
+    user.setUsername(normalizedUsername);
+    user = userRepository.save(user);
+
+    String accessToken = jwtService.generateAccessToken(user);
+    String refreshToken = jwtService.generateRefreshToken(user);
+
+    user.setRefreshTokenHash(hashToken(refreshToken));
+    user.setRefreshTokenExpiresAt(jwtService.extractExpiration(refreshToken).toInstant());
+    userRepository.save(user);
+
+    long expiresInSeconds = jwtService.extractExpiration(accessToken).toInstant().getEpochSecond()
+        - Instant.now().getEpochSecond();
+
+    return AuthTokenResponse.of(accessToken, refreshToken, Math.max(expiresInSeconds, 0));
   }
 }
