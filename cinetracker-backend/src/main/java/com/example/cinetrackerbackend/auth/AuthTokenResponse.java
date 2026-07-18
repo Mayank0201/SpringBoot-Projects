@@ -6,7 +6,7 @@ public record AuthTokenResponse(
 	String refreshToken,
 	String tokenType,
 	long expiresIn,
-	Boolean isNewUser
+	@com.fasterxml.jackson.annotation.JsonProperty("isNewUser") Boolean isNewUser
 ) {
 	public static AuthTokenResponse of(String accessToken, String refreshToken, long expiresIn) {
 		return new AuthTokenResponse(accessToken, accessToken, refreshToken, "Bearer", expiresIn, false);

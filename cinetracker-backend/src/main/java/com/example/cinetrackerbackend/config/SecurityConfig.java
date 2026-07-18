@@ -47,7 +47,8 @@ public class SecurityConfig{
         "/actuator/health/**",
         "/actuator/info",
         "/privacy.html",
-        "/privacy-cogniq.html")
+        "/privacy-cogniq.html",
+        "/cogniq-privacy.html")
     .permitAll().anyRequest().authenticated()
     )
     .addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)
